@@ -144,6 +144,15 @@ class WorkoutViewModel(
         }
     }
 
+    fun discard() {
+        val id = _state.value.session?.id ?: return
+        viewModelScope.launch {
+            runCatching { workouts.discard(id) }
+                .onSuccess { _state.update { it.copy(session = null, exercises = emptyList(), message = "未完成训练已放弃，未生成正式历史") } }
+                .onFailure { message(it) }
+        }
+    }
+
     fun dismiss() { _state.update { it.copy(message = null) } }
 
     private fun message(error: Throwable) {
