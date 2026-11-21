@@ -31,10 +31,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import com.dailyfit.app.data.local.DailyWorkoutPlanEntity
+import com.dailyfit.app.data.local.HabitEntity
 import com.dailyfit.app.data.local.TemporaryTaskEntity
 import com.dailyfit.app.data.repository.HabitItem
 import com.dailyfit.app.feature.habits.HabitUiState
 import com.dailyfit.app.feature.habits.HabitViewModel
+import java.time.DayOfWeek
 
 @Composable
 fun HomeScreen(
