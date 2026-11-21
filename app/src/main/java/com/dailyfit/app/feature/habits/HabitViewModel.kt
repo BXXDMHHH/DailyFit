@@ -88,6 +88,9 @@ class HabitViewModel(
             runCatching { repository.setTodayCompletion(recordId, completed) }
                 .onSuccess { changed ->
                     if (!changed) showMessage("只能打卡或取消今天的习惯")
+                    else if (completed) showMessage(
+                        listOf("完成一项习惯，今天又向前走了一步。", "保持这个节奏，你正在积累改变。", "很好，持续行动比完美计划更重要。").random()
+                    )
                 }
                 .onFailure { showError(it) }
         }
@@ -111,7 +114,10 @@ class HabitViewModel(
     fun setTemporaryTaskCompleted(id: String, completed: Boolean) {
         viewModelScope.launch {
             runCatching { temporaryTaskRepository.setCompletion(id, completed) }
-                .onSuccess { changed -> if (!changed) showMessage("只能完成或取消今天的临时任务") }
+                .onSuccess { changed ->
+                    if (!changed) showMessage("只能完成或取消今天的临时任务")
+                    else if (completed) showMessage(listOf("临时任务完成，做得不错！", "又清掉一件事，继续保持。").random())
+                }
                 .onFailure { showError(it) }
         }
     }
