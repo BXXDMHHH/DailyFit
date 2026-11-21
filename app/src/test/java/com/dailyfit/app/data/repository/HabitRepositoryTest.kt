@@ -88,11 +88,40 @@ class HabitRepositoryTest {
         val yesterday = today.minusDays(1)
         val todayRecord = repository.observeDashboard(today).first().todayHabits.single().record
 
-        assertFalse(repository.setTodayCompletion(todayRecord.id, true).not())
-        // The repository's date synchronizer always uses the injected current date, never yesterday.
+        assertTrue(repository.setTodayCompletion(todayRecord.id, true))
+        val pastRecord = com.dailyfit.app.data.local.HabitRecordEntity(
+            id = "past-record",
+            habitId = todayRecord.habitId,
+            businessDate = yesterday.toString(),
+            habitNameSnapshot = "阅读",
+            createdAt = fixedClock.millis()
+        )
+        database.habitRecordDao().insertIfMissing(pastRecord)
+        assertFalse(repository.setTodayCompletion(pastRecord.id, true))
+        assertFalse(database.habitRecordDao().getById(pastRecord.id)!!.isCompleted)
+        // The synchronizer only generates the current local date; it never backfills yesterday.
         repository.ensureTodayRecords()
         assertEquals(1, repository.observeHistory().first().count { it.businessDate == today.toString() })
-        assertEquals(0, repository.observeHistory().first().count { it.businessDate == yesterday.toString() })
+        assertEquals(1, repository.observeHistory().first().count { it.businessDate == yesterday.toString() })
+    }
+
+    @Test
+    fun migrationFromVersionOnePreservesExistingMetadata() = runBlocking {
+        val context = RuntimeEnvironment.getApplication()
+        val databaseName = "dailyfit-migration-test.db"
+        context.deleteDatabase(databaseName)
+        val oldDatabase = context.openOrCreateDatabase(databaseName, 0, null)
+        oldDatabase.execSQL("CREATE TABLE app_metadata (`key` TEXT NOT NULL PRIMARY KEY, value TEXT NOT NULL)")
+        oldDatabase.execSQL("INSERT INTO app_metadata (`key`, value) VALUES ('existing', 'preserved')")
+        oldDatabase.version = 1
+        oldDatabase.close()
+
+        val migrated = Room.databaseBuilder(context, DailyFitDatabase::class.java, databaseName)
+            .addMigrations(DailyFitDatabase.MIGRATION_1_2)
+            .build()
+        assertEquals("preserved", migrated.appMetadataDao().getValue("existing"))
+        migrated.close()
+        context.deleteDatabase(databaseName)
     }
 
     @Test
