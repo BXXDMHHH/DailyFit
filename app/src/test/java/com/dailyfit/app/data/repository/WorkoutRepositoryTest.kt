@@ -3,6 +3,7 @@ import androidx.room.Room
 import com.dailyfit.app.data.local.*
 import java.time.Clock
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneOffset
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -62,4 +63,59 @@ class WorkoutRepositoryTest {
   val s2=repo.start(p2,emptyList());repo.finish(s2,"SKIPPED")
   assertEquals(setOf("INCOMPLETE","SKIPPED"),repo.observeHistory().first().map{it.status}.toSet())
  }
+ @Test fun weeklyPlanActionsAreSnapshottedIntoDailyPlanAndWorkoutSession() = runBlocking {
+  val planRepository = TrainingPlanRepository(db, clock)
+  planRepository.ensureInitialTemplate()
+  val monday = LocalDate.parse("2026-11-23")
+  val initialDays = planRepository.observeWeeklyPlan(monday).first()
+  val mondayTemplate = initialDays.single { it.dayOfWeek == 1 }
+
+  planRepository.saveExercise(null, "杠铃卧推", "胸部", "杠铃", "平板卧推")
+  val exercise = planRepository.observeExercises("").first().single()
+  planRepository.savePlanExercises(
+   "WEEKLY_DAY",
+   mondayTemplate.id,
+   listOf(PlanActionInput(exercise.id, exercise.name, exercise.category, exercise.equipment, exercise.notes, 4, "8-10", 60.0))
+  )
+
+  // Creating a new weekly version must preserve action configuration for each weekday.
+  planRepository.saveWeeklyPlan(
+   monday,
+   initialDays.map { WeeklyPlanInput(it.dayOfWeek, it.title, it.notes, it.isRestDay) }
+  )
+  val updatedMonday = planRepository.observeWeeklyPlan(monday).first().single { it.dayOfWeek == 1 }
+  val weeklyActions = planRepository.getPlanExercises("WEEKLY_DAY", updatedMonday.id)
+  assertEquals(1, weeklyActions.size)
+  assertEquals(60.0, weeklyActions.single().targetWeight, 0.0)
+
+  planRepository.ensureDailyPrimary(monday)
+  val dailyPlan = planRepository.observeDailyPlans(monday).first().single()
+  val copiedActions = planRepository.getPlanExercises("DAILY_PLAN", dailyPlan.id)
+  assertEquals(60.0, copiedActions.single().targetWeight, 0.0)
+
+  // A dated override stays independent from the weekly template.
+  planRepository.savePlanExercises(
+   "DAILY_PLAN",
+   dailyPlan.id,
+   listOf(PlanActionInput(exercise.id, exercise.name, exercise.category, exercise.equipment, exercise.notes, 3, "6-8", 65.0))
+  )
+  assertEquals(60.0, planRepository.getPlanExercises("WEEKLY_DAY", updatedMonday.id).single().targetWeight, 0.0)
+
+  val sessionId = repo.start(dailyPlan, planRepository.getPlanExercises("DAILY_PLAN", dailyPlan.id))
+  val sessionExercise = db.workoutSessionDao().getExercises(sessionId).single()
+  assertEquals("杠铃卧推", sessionExercise.exerciseNameSnapshot)
+  assertEquals(3, sessionExercise.targetSets)
+  assertEquals("6-8", sessionExercise.targetReps)
+  assertEquals(65.0, sessionExercise.targetWeight, 0.0)
+  val sessionSets = db.workoutSessionDao().getSets(sessionExercise.id)
+  assertEquals(3, sessionSets.size)
+  assertEquals(6, sessionSets.first().targetReps)
+  assertEquals(65.0, sessionSets.first().targetWeight, 0.0)
+
+  val historyId = repo.finish(sessionId)
+  val historyExercise = repo.observeHistoryExercises(historyId).first().single()
+  assertEquals("杠铃卧推", historyExercise.exerciseNameSnapshot)
+  assertEquals(65.0, historyExercise.targetWeight, 0.0)
+ }
+
 }
