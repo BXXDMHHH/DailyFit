@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.dailyfit.app.data.local.HabitRecordEntity
 import com.dailyfit.app.feature.habits.HabitUiState
+import java.time.LocalDate
 
 @Composable
 fun HistoryScreen(state: HabitUiState, modifier: Modifier = Modifier) {
@@ -30,6 +31,7 @@ fun HistoryScreen(state: HabitUiState, modifier: Modifier = Modifier) {
                     "固定习惯累计完成率：${dashboard?.overallCompletionPercent ?: 0}%（${dashboard?.allCompleted ?: 0}/${dashboard?.allTotal ?: 0}）",
                     style = MaterialTheme.typography.bodyLarge
                 )
+                Text("连续有打卡的天数：${currentCheckInStreak(state.history)} 天", style = MaterialTheme.typography.titleMedium)
                 Text("历史打卡只读展示，不能补签或修改。", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
@@ -49,4 +51,20 @@ private fun HabitHistoryRow(record: HabitRecordEntity) {
             Text(if (record.isCompleted) "已完成" else "未完成", color = if (record.isCompleted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
+}
+
+
+private fun currentCheckInStreak(records: List<HabitRecordEntity>): Int {
+    val completedDates = records.asSequence()
+        .filter { it.isCompleted }
+        .mapNotNull { runCatching { LocalDate.parse(it.businessDate) }.getOrNull() }
+        .toSet()
+    val today = LocalDate.now()
+    var cursor = if (today in completedDates) today else today.minusDays(1)
+    var streak = 0
+    while (cursor in completedDates) {
+        streak++
+        cursor = cursor.minusDays(1)
+    }
+    return streak
 }
