@@ -36,6 +36,7 @@ interface AppMetadataDao {
         WeeklyWorkoutPlanDayEntity::class,
         DailyWorkoutPlanEntity::class,
         ExerciseEntity::class,
+        WorkoutPlanExerciseEntity::class,
         WorkoutSessionEntity::class,
         WorkoutSessionExerciseEntity::class,
         WorkoutSessionSetEntity::class,
@@ -43,7 +44,7 @@ interface AppMetadataDao {
         WorkoutHistoryExerciseEntity::class,
         WorkoutHistorySetEntity::class
     ],
-    version = 5,
+    version = 6,
     exportSchema = true
 )
 abstract class DailyFitDatabase : RoomDatabase() {
@@ -55,6 +56,7 @@ abstract class DailyFitDatabase : RoomDatabase() {
     abstract fun dailyWorkoutPlanDao(): DailyWorkoutPlanDao
     abstract fun exerciseDao(): ExerciseDao
     abstract fun workoutSessionDao(): WorkoutSessionDao
+    abstract fun workoutPlanExerciseDao(): WorkoutPlanExerciseDao
 
     companion object {
         const val DATABASE_NAME = "dailyfit.db"
@@ -129,6 +131,29 @@ abstract class DailyFitDatabase : RoomDatabase() {
                     db.execSQL("CREATE TRIGGER IF NOT EXISTS immutable_${table}_update BEFORE UPDATE ON ${table} BEGIN SELECT RAISE(ABORT, 'Workout history is immutable'); END")
                     db.execSQL("CREATE TRIGGER IF NOT EXISTS immutable_${table}_delete BEFORE DELETE ON ${table} BEGIN SELECT RAISE(ABORT, 'Workout history is immutable'); END")
                 }
+            }
+        }
+
+        val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS workout_plan_exercises (
+                        id TEXT NOT NULL PRIMARY KEY,
+                        ownerType TEXT NOT NULL,
+                        ownerId TEXT NOT NULL,
+                        exerciseId TEXT,
+                        exerciseNameSnapshot TEXT NOT NULL,
+                        categorySnapshot TEXT NOT NULL,
+                        equipmentSnapshot TEXT NOT NULL,
+                        notesSnapshot TEXT NOT NULL,
+                        sortOrder INTEGER NOT NULL,
+                        targetSets INTEGER NOT NULL,
+                        targetReps TEXT NOT NULL,
+                        targetWeight REAL NOT NULL
+                    )
+                """.trimIndent())
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_workout_plan_exercises_ownerType_ownerId ON workout_plan_exercises(ownerType, ownerId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_workout_plan_exercises_exerciseId ON workout_plan_exercises(exerciseId)")
             }
         }
 
