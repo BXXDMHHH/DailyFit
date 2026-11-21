@@ -56,7 +56,7 @@ class WorkoutRepositoryTest {
   repo.updateSet(sid, sessionSet.id, 8.0, 5, true)
   val hid=repo.finish(sid)
   val historyExercise=repo.observeHistoryExercises(hid).first().single()
-  val historySet=repo.observeHistorySets(historyExercise.id).first().single()
+  val historySet=repo.observeHistorySets(historyExercise.id).first().first()
 
   val blocked = listOf(
    runCatching{db.openHelper.writableDatabase.execSQL("UPDATE workout_history SET titleSnapshot='tampered' WHERE id=?",arrayOf(hid))},
@@ -69,7 +69,7 @@ class WorkoutRepositoryTest {
   assertTrue(blocked.all { it.isFailure })
   assertEquals("跑步",repo.observeHistory().first().single().titleSnapshot)
   assertEquals("跑步",repo.observeHistoryExercises(hid).first().single().exerciseNameSnapshot)
-  assertEquals(5,repo.observeHistorySets(historyExercise.id).first().single().actualReps)
+  assertEquals(5,repo.observeHistorySets(historyExercise.id).first().first().actualReps)
  }
  @Test fun incompleteAndSkippedArePersistedAsReadOnlyHistoryStatuses()= runBlocking {
   val p1=DailyWorkoutPlanEntity("p3","2026-11-22","力量","", "PLANNED",true,null,1,1)
