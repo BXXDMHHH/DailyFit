@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.History
@@ -71,25 +72,27 @@ private fun DailyFitApp() {
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
-            NavigationBar {
-                MainDestination.entries.forEach { destination ->
-                    val icon = when (destination) {
-                        MainDestination.Home -> Icons.Filled.Home
-                        MainDestination.Plan -> Icons.Filled.CalendarMonth
-                        MainDestination.History -> Icons.Filled.History
+            if (currentRoute != "workout") {
+                NavigationBar {
+                    MainDestination.entries.forEach { destination ->
+                        val icon = when (destination) {
+                            MainDestination.Home -> Icons.Filled.Home
+                            MainDestination.Plan -> Icons.Filled.CalendarMonth
+                            MainDestination.History -> Icons.Filled.History
+                        }
+                        NavigationBarItem(
+                            selected = currentRoute == destination.route,
+                            onClick = {
+                                navController.navigate(destination.route) {
+                                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                            },
+                            icon = { androidx.compose.material3.Icon(icon, contentDescription = destination.label) },
+                            label = { Text(destination.label) }
+                        )
                     }
-                    NavigationBarItem(
-                        selected = currentRoute == destination.route,
-                        onClick = {
-                            navController.navigate(destination.route) {
-                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        },
-                        icon = { androidx.compose.material3.Icon(icon, contentDescription = destination.label) },
-                        label = { Text(destination.label) }
-                    )
                 }
             }
         }
