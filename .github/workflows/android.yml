@@ -20,6 +20,8 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '9.6.0'
+      - name: Generate Room schema
+        run: gradle kspDebugKotlin --rerun-tasks
       - name: Run unit tests
         run: gradle testDebugUnitTest
       - name: Assemble debug APK

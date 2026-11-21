@@ -106,6 +106,38 @@ class HabitRepositoryTest {
     }
 
     @Test
+    fun dateChangeCreatesNewUncheckedRecordAndPreservesPreviousDay() = runBlocking {
+        val clock = MutableTestClock(
+            Instant.parse("2026-11-23T08:00:00Z"),
+            ZoneId.of("Asia/Tokyo")
+        )
+        val context = RuntimeEnvironment.getApplication()
+        val testDatabase = Room.inMemoryDatabaseBuilder(context, DailyFitDatabase::class.java)
+            .allowMainThreadQueries()
+            .build()
+        try {
+            val testRepository = HabitRepository(testDatabase, clock)
+            testRepository.createHabit("每日阅读", HabitFrequency.DAILY, emptySet())
+            val firstDate = LocalDate.now(clock)
+            val firstRecord = testRepository.observeDashboard(firstDate).first().todayHabits.single().record
+            assertTrue(testRepository.setTodayCompletion(firstRecord.id, true))
+
+            clock.currentInstant = Instant.parse("2026-11-24T08:00:00Z")
+            val nextDate = LocalDate.now(clock)
+            testRepository.ensureTodayRecords()
+            val nextRecord = testRepository.observeDashboard(nextDate).first().todayHabits.single().record
+
+            assertEquals(firstDate.plusDays(1), nextDate)
+            assertFalse(nextRecord.isCompleted)
+            val history = testRepository.observeHistory().first()
+            assertTrue(history.single { it.id == firstRecord.id }.isCompleted)
+            assertEquals(2, history.size)
+        } finally {
+            testDatabase.close()
+        }
+    }
+
+    @Test
     fun migrationFromVersionOnePreservesExistingMetadata() = runBlocking {
         val context = RuntimeEnvironment.getApplication()
         val databaseName = "dailyfit-migration-test.db"
@@ -145,4 +177,14 @@ class HabitRepositoryTest {
         assertEquals(50, dashboard.todayCompletionPercent)
         assertEquals(50, dashboard.overallCompletionPercent)
     }
+}
+
+
+private class MutableTestClock(
+    var currentInstant: Instant,
+    private val currentZone: ZoneId
+) : Clock() {
+    override fun getZone(): ZoneId = currentZone
+    override fun withZone(zone: ZoneId): Clock = MutableTestClock(currentInstant, zone)
+    override fun instant(): Instant = currentInstant
 }
