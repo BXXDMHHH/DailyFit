@@ -3,9 +3,7 @@ package com.dailyfit.app.data.repository
 import androidx.room.withTransaction
 import com.dailyfit.app.data.local.*
 import java.time.Clock
-import java.time.LocalDate
 import java.util.UUID
-import kotlinx.coroutines.flow.Flow
 
 class WorkoutRepository(private val db:DailyFitDatabase, private val clock:Clock=Clock.systemDefaultZone()) {
  private val dao=db.workoutSessionDao()
@@ -17,11 +15,24 @@ class WorkoutRepository(private val db:DailyFitDatabase, private val clock:Clock
  fun observeHistorySets(id:String)=dao.observeHistorySets(id)
  fun observeSessionExercises(id:String)=dao.observeExercises(id)
  fun observeSessionSets(id:String)=dao.observeSets(id)
- suspend fun start(plan:DailyWorkoutPlanEntity, library:List<ExerciseEntity>):String = db.withTransaction {
+ suspend fun start(plan:DailyWorkoutPlanEntity, actions:List<WorkoutPlanExerciseEntity> = emptyList()):String = db.withTransaction {
   check(dao.getActive()==null) { "已有未完成训练，请先恢复或结束" }
-  val sessionId=id(); val now=clock.millis()
+  val sessionId=id()
+  val now=clock.millis()
   dao.insertSession(WorkoutSessionEntity(sessionId,plan.id,plan.businessDate,plan.title,"IN_PROGRESS",now,now))
-  // The plan title is snapshotted. Library actions are selected explicitly in the execution screen.
+  actions.sortedBy { it.sortOrder }.forEachIndexed { index, action ->
+   require(action.targetSets in 1..30 && action.targetWeight >= 0.0 && action.targetReps.isNotBlank())
+   val exerciseId=id()
+   dao.insertExercise(WorkoutSessionExerciseEntity(
+    exerciseId,sessionId,action.exerciseId,action.exerciseNameSnapshot,action.categorySnapshot,
+    action.equipmentSnapshot,action.notesSnapshot,index,action.targetSets,action.targetReps,
+    action.targetWeight,false
+   ))
+   val reps=action.targetReps.substringBefore("-").trim().toIntOrNull() ?: 0
+   dao.insertSets((1..action.targetSets).map { setNumber ->
+    WorkoutSessionSetEntity(id(),exerciseId,setNumber,reps,action.targetWeight,null,null,false,now)
+   })
+  }
   sessionId
  }
  suspend fun addExercise(sessionId:String, exercise:ExerciseEntity?, temporaryName:String?=null,
@@ -41,12 +52,12 @@ class WorkoutRepository(private val db:DailyFitDatabase, private val clock:Clock
  }
  suspend fun removeExercise(sessionId:String,exerciseId:String) = db.withTransaction {
   val session=dao.get(sessionId) ?: error("训练不存在"); check(session.status=="IN_PROGRESS")
-  dao.deleteSetsForExercise(exerciseId); dao.deleteExercise(exerciseId,sessionId)
+  dao.deleteSetsForExercise(exerciseId,sessionId); dao.deleteExercise(exerciseId,sessionId)
  }
  suspend fun addSet(sessionId:String,exerciseId:String) = db.withTransaction {
   val session=dao.get(sessionId) ?: error("训练不存在"); check(session.status=="IN_PROGRESS")
   val sets=dao.getSets(exerciseId); val last=sets.lastOrNull()
-  dao.insertSets(listOf(WorkoutSessionSetEntity(id(),exerciseId,(sets.size+1),
+  dao.insertSets(listOf(WorkoutSessionSetEntity(id(),exerciseId,((sets.maxOfOrNull { it.setNumber } ?: 0)+1),
    last?.targetReps ?: 0,last?.targetWeight ?: 0.0,null,null,false,clock.millis())))
  }
  suspend fun removeSet(sessionId:String,exerciseId:String,setId:String) = db.withTransaction {
