@@ -35,7 +35,6 @@ import com.dailyfit.app.data.repository.WeeklyPlanInput
 import com.dailyfit.app.data.repository.WorkoutPlanStatus
 import com.dailyfit.app.feature.habits.HabitViewModel
 import com.dailyfit.app.feature.habits.HabitUiState
-import com.dailyfit.app.feature.plan.HabitManagementSection
 import androidx.compose.material3.CircularProgressIndicator
 import java.time.LocalDate
 import java.time.format.DateTimeParseException
@@ -81,6 +80,9 @@ fun PlanScreen(viewModel: PlanViewModel, habitViewModel: HabitViewModel, modifie
                     }
                     Text("修改将生成新版本，只对生效日期及之后的日期生效。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     val names = listOf("周一", "周二", "周三", "周四", "周五", "周六", "周日")
+                    if (!state.isLoading && state.weeklyDays.isEmpty()) {
+                        Text("每周训练模板暂不可用，请检查数据后重试。", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                     state.weeklyDays.forEach { day ->
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                             Text(names.getOrElse(day.dayOfWeek - 1) { "" }, modifier = Modifier.weight(1f))
@@ -106,6 +108,9 @@ fun PlanScreen(viewModel: PlanViewModel, habitViewModel: HabitViewModel, modifie
                         modifier = Modifier.fillMaxWidth()
                     )
                     Text("只修改所选日期，不会改变每周固定模板。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (!state.isLoading && state.dailyPlans.isEmpty()) {
+                        Text("所选日期暂无训练安排。", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                     state.dailyPlans.forEach { plan ->
                         DailyPlanRow(
                             plan = plan,

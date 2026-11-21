@@ -53,10 +53,10 @@ class PlanViewModel(
     val uiState: StateFlow<PlanUiState> = _uiState.asStateFlow()
 
     init {
-        viewModelScope.launch { repository.ensureInitialTemplate() }
+        viewModelScope.launch { runCatching { repository.ensureInitialTemplate() }.onFailure(::showError) }
         viewModelScope.launch {
             selectedDate.flatMapLatest { date ->
-                repository.ensureDailyPrimary(date)
+                runCatching { repository.ensureDailyPrimary(date) }.onFailure(::showError)
                 combine(
                     repository.observeWeeklyPlan(date),
                     repository.observeDailyPlans(date),
