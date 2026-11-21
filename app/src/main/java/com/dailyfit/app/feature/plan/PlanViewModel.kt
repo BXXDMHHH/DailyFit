@@ -155,7 +155,7 @@ class PlanViewModel(
         val actions = _uiState.value.planActions.toMutableList()
         val old = actions.getOrNull(index) ?: return
         actions[index] = old.copy(
-            targetSets = targetSets?.toIntOrNull()?.coerceIn(1, 30) ?: old.targetSets,
+            targetSets = targetSets ?: old.targetSets,
             targetReps = targetReps ?: old.targetReps,
             targetWeight = targetWeight ?: old.targetWeight
         )
