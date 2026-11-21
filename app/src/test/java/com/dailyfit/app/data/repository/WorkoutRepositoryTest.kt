@@ -118,4 +118,27 @@ class WorkoutRepositoryTest {
   assertEquals(65.0, historyExercise.targetWeight, 0.0)
  }
 
+ @Test fun workoutHistoryStatisticsAggregateCompletedSessionsSetsAndVolume() = runBlocking {
+  val plan = DailyWorkoutPlanEntity("stats-plan", "2026-11-22", "力量训练", "", "PLANNED", true, null, 1, 1)
+  val sessionId = repo.start(plan)
+  repo.addExercise(
+   sessionId,
+   ExerciseEntity("stats-exercise", "深蹲", "腿部", "杠铃", "", 1, 1),
+   targetSets = 2,
+   targetReps = "8-10",
+   targetWeight = 50.0
+  )
+  val exercise = db.workoutSessionDao().getExercises(sessionId).single()
+  val sets = db.workoutSessionDao().getSets(exercise.id)
+  repo.updateSet(sessionId, sets[0].id, 50.0, 10, true)
+  repo.updateSet(sessionId, sets[1].id, 55.0, 8, true)
+  repo.finish(sessionId)
+
+  val stats = db.workoutSessionDao().observeStats().first()
+  assertEquals(1, stats.totalSessions)
+  assertEquals(1, stats.completedSessions)
+  assertEquals(2, stats.completedSets)
+  assertEquals(940.0, stats.totalVolume, 0.0)
+ }
+
 }
