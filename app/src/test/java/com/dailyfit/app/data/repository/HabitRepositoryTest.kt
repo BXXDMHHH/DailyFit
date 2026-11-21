@@ -56,6 +56,14 @@ class HabitRepositoryTest {
     }
 
     @Test
+    fun customHabitOnAnotherWeekdayRemainsVisibleInHabitManagement() = runBlocking {
+        repository.createHabit("周三拉伸", HabitFrequency.CUSTOM, setOf(java.time.DayOfWeek.WEDNESDAY))
+        val dashboard = repository.observeDashboard(today).first()
+        assertTrue(dashboard.todayHabits.isEmpty())
+        assertEquals("周三拉伸", dashboard.activeHabits.single().name)
+    }
+
+    @Test
     fun editingHabitDoesNotRewriteExistingRecordSnapshot() = runBlocking {
         repository.createHabit("阅读", HabitFrequency.DAILY, emptySet())
         val before = repository.observeDashboard(today).first().todayHabits.single().record

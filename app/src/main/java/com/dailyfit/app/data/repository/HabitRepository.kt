@@ -21,6 +21,7 @@ data class HabitItem(
 
 data class HabitDashboard(
     val date: LocalDate,
+    val activeHabits: List<HabitEntity>,
     val todayHabits: List<HabitItem>,
     val inactiveHabits: List<HabitEntity>,
     val todayCompleted: Int,
@@ -55,6 +56,7 @@ class HabitRepository(
                 .toList()
             HabitDashboard(
                 date = date,
+                activeHabits = habits.filter { it.isActive },
                 todayHabits = todayItems,
                 inactiveHabits = habits.filterNot { it.isActive },
                 todayCompleted = todayItems.count { it.record.isCompleted },

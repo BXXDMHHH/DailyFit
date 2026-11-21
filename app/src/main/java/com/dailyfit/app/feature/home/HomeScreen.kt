@@ -81,9 +81,23 @@ fun HomeScreen(
                         dashboard.todayHabits.forEach { item ->
                             HabitRow(
                                 item = item,
-                                onChecked = { viewModel.setCompleted(item.record.id, it) },
-                                onEdit = { editingHabit = item.habit },
-                                onDeactivate = { deactivatingHabit = item.habit }
+                                onChecked = { viewModel.setCompleted(item.record.id, it) }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        if (dashboard != null && dashboard.activeHabits.isNotEmpty()) {
+            item {
+                Card(Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text("固定习惯管理", style = MaterialTheme.typography.titleMedium)
+                        dashboard.activeHabits.forEach { habit ->
+                            HabitManagementRow(
+                                habit = habit,
+                                onEdit = { editingHabit = habit },
+                                onDeactivate = { deactivatingHabit = habit }
                             )
                         }
                     }
@@ -172,9 +186,7 @@ fun HomeScreen(
 @Composable
 private fun HabitRow(
     item: HabitItem,
-    onChecked: (Boolean) -> Unit,
-    onEdit: () -> Unit,
-    onDeactivate: () -> Unit
+    onChecked: (Boolean) -> Unit
 ) {
     Column {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
@@ -182,6 +194,23 @@ private fun HabitRow(
             Column(Modifier.weight(1f)) {
                 Text(item.habit.name, style = MaterialTheme.typography.bodyLarge)
                 Text(frequencyLabel(item.habit), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+    }
+}
+
+@Composable
+private fun HabitManagementRow(
+    habit: HabitEntity,
+    onEdit: () -> Unit,
+    onDeactivate: () -> Unit
+) {
+    Column {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.weight(1f)) {
+                Text(habit.name, style = MaterialTheme.typography.bodyLarge)
+                Text(frequencyLabel(habit), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             TextButton(onClick = onEdit) { Text("编辑") }
             TextButton(onClick = onDeactivate) { Text("停用") }
