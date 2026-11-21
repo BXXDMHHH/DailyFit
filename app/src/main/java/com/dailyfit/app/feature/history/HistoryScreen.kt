@@ -50,6 +50,7 @@ fun HistoryScreen(
     var rows by remember { mutableStateOf(emptyList<WorkoutHistoryEntity>()) }
     var stats by remember { mutableStateOf(WorkoutHistoryStats(0, 0, 0, 0.0)) }
     var historyLoaded by remember { mutableStateOf(false) }
+    var statsLoaded by remember { mutableStateOf(false) }
     var historyError by remember { mutableStateOf<String?>(null) }
     var reloadKey by remember { mutableStateOf(0) }
     var selected by remember { mutableStateOf<WorkoutHistoryEntity?>(null) }
@@ -62,6 +63,7 @@ fun HistoryScreen(
 
     LaunchedEffect(database, reloadKey) {
         historyLoaded = false
+        statsLoaded = false
         historyError = null
         launch {
             try {
@@ -76,7 +78,7 @@ fun HistoryScreen(
         }
         launch {
             try {
-                dao.observeStats().collect { stats = it }
+                dao.observeStats().collect { stats = it; statsLoaded = true }
             } catch (error: Exception) {
                 historyError = error.message ?: "训练统计加载失败"
             }
@@ -97,10 +99,14 @@ fun HistoryScreen(
             Card(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text("固定习惯", style = MaterialTheme.typography.titleMedium)
-                    val dashboard = state.dashboard
-                    Text("累计完成率：${dashboard?.overallCompletionPercent ?: 0}%（${dashboard?.allCompleted ?: 0}/${dashboard?.allTotal ?: 0}）")
-                    Text("连续打卡：${calculateCheckInStreak(state.history, dashboard?.date ?: LocalDate.now())} 天")
-                    Text("历史打卡只读展示，不支持补签或修改。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (state.isLoading) {
+                        CircularProgressIndicator()
+                    } else {
+                        val dashboard = state.dashboard
+                        Text("累计完成率：${dashboard?.overallCompletionPercent ?: 0}%（${dashboard?.allCompleted ?: 0}/${dashboard?.allTotal ?: 0}）")
+                        Text("连续打卡：${calculateCheckInStreak(state.history, dashboard?.date ?: LocalDate.now())} 天")
+                        Text("历史打卡只读展示，不支持补签或修改。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                 }
             }
         }
@@ -108,9 +114,13 @@ fun HistoryScreen(
             Card(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text("临时任务（独立统计）", style = MaterialTheme.typography.titleMedium)
-                    val tasks = state.temporaryTaskDashboard
-                    Text("累计完成：${tasks?.allCompleted ?: 0}/${tasks?.allTotal ?: 0}")
-                    Text("今日完成：${tasks?.todayCompleted ?: 0}/${tasks?.todayTotal ?: 0} · 完成率 ${tasks?.todayCompletionPercent ?: 0}%")
+                    if (state.isLoading) {
+                        CircularProgressIndicator()
+                    } else {
+                        val tasks = state.temporaryTaskDashboard
+                        Text("累计完成：${tasks?.allCompleted ?: 0}/${tasks?.allTotal ?: 0}")
+                        Text("今日完成：${tasks?.todayCompleted ?: 0}/${tasks?.todayTotal ?: 0} · 完成率 ${tasks?.todayCompletionPercent ?: 0}%")
+                    }
                 }
             }
         }
@@ -118,7 +128,7 @@ fun HistoryScreen(
             Card(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text("训练统计", style = MaterialTheme.typography.titleMedium)
-                    if (!historyLoaded && !state.isLoading) {
+                    if (!historyLoaded || !statsLoaded) {
                         CircularProgressIndicator()
                     } else {
                         Text("训练次数：${stats.totalSessions} 次")
