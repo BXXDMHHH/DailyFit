@@ -12,6 +12,7 @@ import java.time.DayOfWeek
 import java.time.Duration
 import java.time.LocalDate
 import java.time.LocalDateTime
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,6 +29,7 @@ data class HabitUiState(
     val message: String? = null
 )
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class HabitViewModel(
     private val repository: HabitRepository,
     private val clock: Clock = Clock.systemDefaultZone()
