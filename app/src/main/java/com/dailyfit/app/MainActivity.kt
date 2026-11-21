@@ -34,6 +34,10 @@ import com.dailyfit.app.feature.history.WorkoutHistorySection
 import com.dailyfit.app.feature.plan.PlanScreen
 import com.dailyfit.app.feature.plan.PlanViewModel
 import com.dailyfit.app.feature.plan.PlanViewModelFactory
+import com.dailyfit.app.feature.workout.WorkoutScreen
+import com.dailyfit.app.feature.workout.WorkoutViewModel
+import com.dailyfit.app.feature.workout.WorkoutViewModelFactory
+import java.time.LocalDate
 import com.dailyfit.app.ui.theme.DailyFitTheme
 
 class MainActivity : ComponentActivity() {
@@ -93,14 +97,29 @@ private fun DailyFitApp() {
         NavHost(navController, startDestination = MainDestination.Home.route, modifier = Modifier.padding(padding)) {
             composable(MainDestination.Home.route) {
                 val state by habitViewModel.uiState.collectAsStateWithLifecycle()
-                HomeScreen(state, habitViewModel)
+                HomeScreen(state, habitViewModel, onStartWorkout = {
+                    planViewModel.selectDate(LocalDate.now())
+                    navController.navigate("workout")
+                })
             }
             composable(MainDestination.Plan.route) { PlanScreen(planViewModel) }
+            composable("workout") {
+                val planState by planViewModel.uiState.collectAsStateWithLifecycle()
+                val workoutViewModel: WorkoutViewModel = viewModel(
+                    viewModelStoreOwner = activity,
+                    factory = WorkoutViewModelFactory(app.workoutRepository, app.trainingPlanRepository, app.database)
+                )
+                WorkoutScreen(
+                    viewModel = workoutViewModel,
+                    plans = planState.dailyPlans,
+                    onBack = { navController.popBackStack() }
+                )
+            }
             composable(MainDestination.History.route) {
                 val state by habitViewModel.uiState.collectAsStateWithLifecycle()
-                androidx.compose.foundation.layout.Column {
-                    HistoryScreen(state)
-                    WorkoutHistorySection(app.database)
+                androidx.compose.foundation.layout.Column(Modifier.fillMaxSize()) {
+                    HistoryScreen(state, Modifier.weight(1f))
+                    WorkoutHistorySection(app.database, Modifier.weight(1f))
                 }
             }
         }
