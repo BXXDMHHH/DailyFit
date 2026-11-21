@@ -13,7 +13,8 @@ class DailyFitApplication : Application() {
             .addMigrations(
                 DailyFitDatabase.MIGRATION_1_2,
                 DailyFitDatabase.MIGRATION_2_3,
-                DailyFitDatabase.MIGRATION_3_4
+                DailyFitDatabase.MIGRATION_3_4,
+                DailyFitDatabase.MIGRATION_4_5
             )
             .build()
     }
@@ -21,4 +22,5 @@ class DailyFitApplication : Application() {
     val habitRepository: HabitRepository by lazy { HabitRepository(database) }
     val temporaryTaskRepository: TemporaryTaskRepository by lazy { TemporaryTaskRepository(database) }
     val trainingPlanRepository: TrainingPlanRepository by lazy { TrainingPlanRepository(database) }
+    val workoutRepository: com.dailyfit.app.data.repository.WorkoutRepository by lazy { com.dailyfit.app.data.repository.WorkoutRepository(database) }
 }

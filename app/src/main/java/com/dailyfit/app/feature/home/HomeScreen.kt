@@ -42,6 +42,7 @@ import java.time.DayOfWeek
 fun HomeScreen(
     state: HabitUiState,
     viewModel: HabitViewModel,
+    onStartWorkout: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val dashboard = state.dashboard
@@ -161,7 +162,8 @@ fun HomeScreen(
             Card(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text("今日训练", style = MaterialTheme.typography.titleMedium)
-                    Text("训练计划与训练记录将在后续阶段接入", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("查看今日训练安排并记录每组实际数据", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Button(onClick = onStartWorkout) { Text("开始训练") }
                 }
             }
         }

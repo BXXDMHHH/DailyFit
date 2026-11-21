@@ -35,9 +35,15 @@ interface AppMetadataDao {
         WeeklyWorkoutPlanVersionEntity::class,
         WeeklyWorkoutPlanDayEntity::class,
         DailyWorkoutPlanEntity::class,
-        ExerciseEntity::class
+        ExerciseEntity::class,
+        WorkoutSessionEntity::class,
+        WorkoutSessionExerciseEntity::class,
+        WorkoutSessionSetEntity::class,
+        WorkoutHistoryEntity::class,
+        WorkoutHistoryExerciseEntity::class,
+        WorkoutHistorySetEntity::class
     ],
-    version = 4,
+    version = 5,
     exportSchema = true
 )
 abstract class DailyFitDatabase : RoomDatabase() {
@@ -48,6 +54,7 @@ abstract class DailyFitDatabase : RoomDatabase() {
     abstract fun weeklyWorkoutPlanDao(): WeeklyWorkoutPlanDao
     abstract fun dailyWorkoutPlanDao(): DailyWorkoutPlanDao
     abstract fun exerciseDao(): ExerciseDao
+    abstract fun workoutSessionDao(): WorkoutSessionDao
 
     companion object {
         const val DATABASE_NAME = "dailyfit.db"
@@ -97,6 +104,31 @@ abstract class DailyFitDatabase : RoomDatabase() {
                 """.trimIndent())
                 db.execSQL("CREATE INDEX IF NOT EXISTS index_temporary_tasks_businessDate ON temporary_tasks(businessDate)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS index_temporary_tasks_businessDate_isCompleted ON temporary_tasks(businessDate, isCompleted)")
+            }
+        }
+
+
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS workout_sessions (id TEXT NOT NULL PRIMARY KEY, planId TEXT, businessDate TEXT NOT NULL, title TEXT NOT NULL, status TEXT NOT NULL, startedAt INTEGER NOT NULL, updatedAt INTEGER NOT NULL)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_workout_sessions_businessDate ON workout_sessions(businessDate)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_workout_sessions_status ON workout_sessions(status)")
+                db.execSQL("CREATE TABLE IF NOT EXISTS workout_session_exercises (id TEXT NOT NULL PRIMARY KEY, sessionId TEXT NOT NULL, exerciseId TEXT, exerciseNameSnapshot TEXT NOT NULL, categorySnapshot TEXT NOT NULL, equipmentSnapshot TEXT NOT NULL, notesSnapshot TEXT NOT NULL, sortOrder INTEGER NOT NULL, targetSets INTEGER NOT NULL, targetReps TEXT NOT NULL, targetWeight REAL NOT NULL, isTemporary INTEGER NOT NULL)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_workout_session_exercises_sessionId ON workout_session_exercises(sessionId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_workout_session_exercises_exerciseId ON workout_session_exercises(exerciseId)")
+                db.execSQL("CREATE TABLE IF NOT EXISTS workout_session_sets (id TEXT NOT NULL PRIMARY KEY, sessionExerciseId TEXT NOT NULL, setNumber INTEGER NOT NULL, targetReps INTEGER NOT NULL, targetWeight REAL NOT NULL, actualReps INTEGER, actualWeight REAL, isCompleted INTEGER NOT NULL, updatedAt INTEGER NOT NULL)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_workout_session_sets_sessionExerciseId ON workout_session_sets(sessionExerciseId)")
+                db.execSQL("CREATE TABLE IF NOT EXISTS workout_history (id TEXT NOT NULL PRIMARY KEY, sessionId TEXT NOT NULL, planId TEXT, businessDate TEXT NOT NULL, titleSnapshot TEXT NOT NULL, status TEXT NOT NULL, startedAt INTEGER NOT NULL, completedAt INTEGER NOT NULL, durationSeconds INTEGER NOT NULL)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_workout_history_businessDate ON workout_history(businessDate)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_workout_history_completedAt ON workout_history(completedAt)")
+                db.execSQL("CREATE TABLE IF NOT EXISTS workout_history_exercises (id TEXT NOT NULL PRIMARY KEY, historyId TEXT NOT NULL, sourceExerciseId TEXT, exerciseNameSnapshot TEXT NOT NULL, categorySnapshot TEXT NOT NULL, equipmentSnapshot TEXT NOT NULL, notesSnapshot TEXT NOT NULL, sortOrder INTEGER NOT NULL, targetSets INTEGER NOT NULL, targetReps TEXT NOT NULL, targetWeight REAL NOT NULL, isTemporary INTEGER NOT NULL)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_workout_history_exercises_historyId ON workout_history_exercises(historyId)")
+                db.execSQL("CREATE TABLE IF NOT EXISTS workout_history_sets (id TEXT NOT NULL PRIMARY KEY, historyExerciseId TEXT NOT NULL, setNumber INTEGER NOT NULL, targetReps INTEGER NOT NULL, targetWeight REAL NOT NULL, actualReps INTEGER, actualWeight REAL, isCompleted INTEGER NOT NULL)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_workout_history_sets_historyExerciseId ON workout_history_sets(historyExerciseId)")
+                listOf("workout_history","workout_history_exercises","workout_history_sets").forEach { table ->
+                    db.execSQL("CREATE TRIGGER IF NOT EXISTS immutable_${table}_update BEFORE UPDATE ON ${table} BEGIN SELECT RAISE(ABORT, 'Workout history is immutable'); END")
+                    db.execSQL("CREATE TRIGGER IF NOT EXISTS immutable_${table}_delete BEFORE DELETE ON ${table} BEGIN SELECT RAISE(ABORT, 'Workout history is immutable'); END")
+                }
             }
         }
 

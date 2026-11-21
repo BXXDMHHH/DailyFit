@@ -30,6 +30,7 @@ import com.dailyfit.app.feature.habits.HabitViewModel
 import com.dailyfit.app.feature.habits.HabitViewModelFactory
 import com.dailyfit.app.feature.home.HomeScreen
 import com.dailyfit.app.feature.history.HistoryScreen
+import com.dailyfit.app.feature.history.WorkoutHistorySection
 import com.dailyfit.app.feature.plan.PlanScreen
 import com.dailyfit.app.feature.plan.PlanViewModel
 import com.dailyfit.app.feature.plan.PlanViewModelFactory
@@ -97,7 +98,10 @@ private fun DailyFitApp() {
             composable(MainDestination.Plan.route) { PlanScreen(planViewModel) }
             composable(MainDestination.History.route) {
                 val state by habitViewModel.uiState.collectAsStateWithLifecycle()
-                HistoryScreen(state)
+                androidx.compose.foundation.layout.Column {
+                    HistoryScreen(state)
+                    WorkoutHistorySection(app.database)
+                }
             }
         }
     }
