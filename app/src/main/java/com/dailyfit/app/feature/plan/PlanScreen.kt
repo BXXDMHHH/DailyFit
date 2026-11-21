@@ -33,12 +33,16 @@ import com.dailyfit.app.data.local.DailyWorkoutPlanEntity
 import com.dailyfit.app.data.local.ExerciseEntity
 import com.dailyfit.app.data.repository.WeeklyPlanInput
 import com.dailyfit.app.data.repository.WorkoutPlanStatus
+import com.dailyfit.app.feature.habits.HabitViewModel
+import com.dailyfit.app.feature.habits.HabitUiState
+import androidx.compose.material3.CircularProgressIndicator
 import java.time.LocalDate
 import java.time.format.DateTimeParseException
 
 @Composable
-fun PlanScreen(viewModel: PlanViewModel, modifier: Modifier = Modifier) {
+fun PlanScreen(viewModel: PlanViewModel, habitViewModel: HabitViewModel, modifier: Modifier = Modifier) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val habitState by habitViewModel.uiState.collectAsStateWithLifecycle()
     var showWeeklyEditor by remember { mutableStateOf(false) }
     var showPrimaryEditor by remember { mutableStateOf(false) }
     var showExtraEditor by remember { mutableStateOf(false) }
@@ -58,6 +62,14 @@ fun PlanScreen(viewModel: PlanViewModel, modifier: Modifier = Modifier) {
                 Text("每周模板、单日安排与动作库彼此独立", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
+        item { HabitManagementSection(state = habitState, viewModel = habitViewModel) }
+        if (state.isLoading) {
+            item {
+                androidx.compose.foundation.layout.Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+            }
+        }
         item {
             Card(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -68,6 +80,9 @@ fun PlanScreen(viewModel: PlanViewModel, modifier: Modifier = Modifier) {
                     }
                     Text("修改将生成新版本，只对生效日期及之后的日期生效。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     val names = listOf("周一", "周二", "周三", "周四", "周五", "周六", "周日")
+                    if (!state.isLoading && state.weeklyDays.isEmpty()) {
+                        Text("每周训练模板暂不可用，请检查数据后重试。", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                     state.weeklyDays.forEach { day ->
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                             Text(names.getOrElse(day.dayOfWeek - 1) { "" }, modifier = Modifier.weight(1f))
@@ -93,6 +108,9 @@ fun PlanScreen(viewModel: PlanViewModel, modifier: Modifier = Modifier) {
                         modifier = Modifier.fillMaxWidth()
                     )
                     Text("只修改所选日期，不会改变每周固定模板。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (!state.isLoading && state.dailyPlans.isEmpty()) {
+                        Text("所选日期暂无训练安排。", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                     state.dailyPlans.forEach { plan ->
                         DailyPlanRow(
                             plan = plan,
@@ -121,7 +139,7 @@ fun PlanScreen(viewModel: PlanViewModel, modifier: Modifier = Modifier) {
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true
                     )
-                    if (state.exercises.isEmpty()) Text("没有找到动作", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (state.exercises.isEmpty()) Text(if (state.exerciseQuery.isBlank()) "动作库还没有动作，请添加常用训练动作。" else "没有找到匹配的动作。", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     state.exercises.forEach { exercise ->
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {

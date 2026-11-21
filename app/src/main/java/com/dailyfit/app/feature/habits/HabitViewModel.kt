@@ -47,7 +47,7 @@ class HabitViewModel(
     init {
         viewModelScope.launch {
             currentDate.flatMapLatest { date ->
-                repository.ensureTodayRecords()
+                runCatching { repository.ensureTodayRecords() }.onFailure(::showError)
                 combine(
                     repository.observeDashboard(date),
                     repository.observeHistory(),

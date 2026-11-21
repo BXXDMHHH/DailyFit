@@ -32,7 +32,6 @@ import com.dailyfit.app.feature.habits.HabitViewModel
 import com.dailyfit.app.feature.habits.HabitViewModelFactory
 import com.dailyfit.app.feature.home.HomeScreen
 import com.dailyfit.app.feature.history.HistoryScreen
-import com.dailyfit.app.feature.history.WorkoutHistorySection
 import com.dailyfit.app.feature.plan.PlanScreen
 import com.dailyfit.app.feature.plan.PlanViewModel
 import com.dailyfit.app.feature.plan.PlanViewModelFactory
@@ -109,13 +108,14 @@ private fun DailyFitApp() {
                     state = state,
                     viewModel = habitViewModel,
                     todayWorkoutPlans = planState.dailyPlans.takeIf { planState.selectedDate == LocalDate.now() }.orEmpty(),
+                    isWorkoutPlansLoading = planState.isLoading,
                     onStartWorkout = {
                         planViewModel.selectDate(LocalDate.now())
                         navController.navigate("workout")
                     }
                 )
             }
-            composable(MainDestination.Plan.route) { PlanScreen(planViewModel) }
+            composable(MainDestination.Plan.route) { PlanScreen(planViewModel, habitViewModel) }
             composable("workout") {
                 val planState by planViewModel.uiState.collectAsStateWithLifecycle()
                 val workoutViewModel: WorkoutViewModel = viewModel(
@@ -130,10 +130,7 @@ private fun DailyFitApp() {
             }
             composable(MainDestination.History.route) {
                 val state by habitViewModel.uiState.collectAsStateWithLifecycle()
-                androidx.compose.foundation.layout.Column(Modifier.fillMaxSize()) {
-                    HistoryScreen(state, Modifier.weight(1f))
-                    WorkoutHistorySection(app.database, Modifier.weight(1f))
-                }
+                HistoryScreen(state, app.database, Modifier.fillMaxSize())
             }
         }
     }
