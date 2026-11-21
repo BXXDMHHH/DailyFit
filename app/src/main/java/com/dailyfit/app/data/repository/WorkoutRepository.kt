@@ -96,5 +96,12 @@ class WorkoutRepository(private val db:DailyFitDatabase, private val clock:Clock
   session.planId?.let { db.dailyWorkoutPlanDao().updateStatus(it,session.businessDate,if(status=="COMPLETED") "COMPLETED" else if(status=="SKIPPED") "SKIPPED" else "PLANNED",now) }
   historyId
  }
+ suspend fun discard(sessionId:String) = db.withTransaction {
+  val session=dao.get(sessionId) ?: return@withTransaction
+  check(session.status=="IN_PROGRESS") { "训练已结束，不能放弃" }
+  dao.deleteSetsForSession(sessionId)
+  dao.deleteExercisesForSession(sessionId)
+  check(dao.deleteActiveSession(sessionId)==1) { "训练状态已变化，请重试" }
+ }
  suspend fun recoverableSession():WorkoutSessionEntity? = db.workoutSessionDao().getActive()
 }
