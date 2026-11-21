@@ -42,9 +42,12 @@ class WorkoutViewModel(
     init {
         viewModelScope.launch {
             workouts.observeActive().collect { active ->
+                val previousSessionId = _state.value.session?.id
                 _state.update { it.copy(session = active) }
-                if (active != null) refresh(active.id)
-                else _state.update { it.copy(exercises = emptyList()) }
+                if (active?.id != previousSessionId) {
+                    if (active != null) refresh(active.id)
+                    else _state.update { it.copy(exercises = emptyList()) }
+                }
             }
         }
         viewModelScope.launch {
