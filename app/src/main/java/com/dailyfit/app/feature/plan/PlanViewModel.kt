@@ -131,7 +131,7 @@ class PlanViewModel(
                         planActions = rows.map {
                             PlanActionDraft(
                                 it.exerciseId, it.exerciseNameSnapshot, it.categorySnapshot,
-                                it.equipmentSnapshot, it.notesSnapshot, it.targetSets,
+                                it.equipmentSnapshot, it.notesSnapshot, it.targetSets.toString(),
                                 it.targetReps, it.targetWeight.toString()
                             )
                         }
