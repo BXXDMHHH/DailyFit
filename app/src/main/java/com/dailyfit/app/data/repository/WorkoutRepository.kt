@@ -16,6 +16,7 @@ class WorkoutRepository(private val db:DailyFitDatabase, private val clock:Clock
  fun observeSessionExercises(id:String)=dao.observeExercises(id)
  fun observeSessionSets(id:String)=dao.observeSets(id)
  suspend fun start(plan:DailyWorkoutPlanEntity, actions:List<WorkoutPlanExerciseEntity> = emptyList()):String = db.withTransaction {
+  check(plan.status=="PLANNED") { "这份训练安排已完成或跳过，请添加额外训练" }
   check(dao.getActive()==null) { "已有未完成训练，请先恢复或结束" }
   val sessionId=id()
   val now=clock.millis()
