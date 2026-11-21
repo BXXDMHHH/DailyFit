@@ -20,7 +20,9 @@
 - 支持 COMPLETED、INCOMPLETE、SKIPPED 三种正式历史状态。
 - 结束时在 Room transaction 内生成 WorkoutHistory、HistoryExercise、HistorySet 快照。
 - 历史三张表建立 SQLite BEFORE UPDATE / BEFORE DELETE 触发器，数据库层阻止篡改与删除；历史 DAO 不提供 update/delete API。
-- 首页训练入口接入执行页；今日训练安排可启动；进行中训练可恢复。
+- 首页展示今日实际训练安排及状态，首页训练入口接入执行页；今日训练安排可启动；进行中训练可恢复。
+- 首次安装预置卧推、深蹲、硬拉、杠铃划船、高位下拉、肩推、侧平举；只初始化一次，用户删除后不会被自动恢复。
+- 习惯、临时任务和训练完成后均通过弹窗提供简短鼓励反馈。
 - 历史页新增训练记录列表和详情只读弹窗。
 - Room v4→v5 显式迁移，只新增训练表、索引和不可变触发器。
 
