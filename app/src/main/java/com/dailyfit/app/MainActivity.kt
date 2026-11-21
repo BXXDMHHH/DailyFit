@@ -51,7 +51,7 @@ private fun DailyFitApp() {
     val app = activity.application as DailyFitApplication
     val habitViewModel: HabitViewModel = viewModel(
         viewModelStoreOwner = activity,
-        factory = HabitViewModelFactory(app.habitRepository)
+        factory = HabitViewModelFactory(app.habitRepository, app.temporaryTaskRepository)
     )
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { habitViewModel.refreshDate() }
     val entry by navController.currentBackStackEntryAsState()
@@ -84,7 +84,7 @@ private fun DailyFitApp() {
         }
     ) { padding ->
         NavHost(navController, startDestination = MainDestination.Home.route, modifier = Modifier.padding(padding)) {
-            composable(MainDestination.Home.route) { 
+            composable(MainDestination.Home.route) {
                 val state by habitViewModel.uiState.collectAsStateWithLifecycle()
                 HomeScreen(state, habitViewModel)
             }

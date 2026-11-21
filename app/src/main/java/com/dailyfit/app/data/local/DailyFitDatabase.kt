@@ -27,14 +27,15 @@ interface AppMetadataDao {
 }
 
 @Database(
-    entities = [AppMetadataEntity::class, HabitEntity::class, HabitRecordEntity::class],
-    version = 2,
+    entities = [AppMetadataEntity::class, HabitEntity::class, HabitRecordEntity::class, TemporaryTaskEntity::class],
+    version = 3,
     exportSchema = true
 )
 abstract class DailyFitDatabase : RoomDatabase() {
     abstract fun appMetadataDao(): AppMetadataDao
     abstract fun habitDao(): HabitDao
     abstract fun habitRecordDao(): HabitRecordDao
+    abstract fun temporaryTaskDao(): TemporaryTaskDao
 
     companion object {
         const val DATABASE_NAME = "dailyfit.db"
@@ -66,6 +67,24 @@ abstract class DailyFitDatabase : RoomDatabase() {
                 """.trimIndent())
                 db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_habit_records_habitId_businessDate ON habit_records(habitId, businessDate)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS index_habit_records_businessDate ON habit_records(businessDate)")
+            }
+        }
+
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS temporary_tasks (
+                        id TEXT NOT NULL PRIMARY KEY,
+                        businessDate TEXT NOT NULL,
+                        title TEXT NOT NULL,
+                        isCompleted INTEGER NOT NULL,
+                        createdAt INTEGER NOT NULL,
+                        updatedAt INTEGER NOT NULL,
+                        completedAt INTEGER
+                    )
+                """.trimIndent())
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_temporary_tasks_businessDate ON temporary_tasks(businessDate)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_temporary_tasks_businessDate_isCompleted ON temporary_tasks(businessDate, isCompleted)")
             }
         }
     }

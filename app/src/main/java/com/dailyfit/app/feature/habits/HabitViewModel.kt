@@ -4,8 +4,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.dailyfit.app.data.local.HabitRecordEntity
+import com.dailyfit.app.data.local.TemporaryTaskEntity
 import com.dailyfit.app.data.repository.HabitDashboard
 import com.dailyfit.app.data.repository.HabitRepository
+import com.dailyfit.app.data.repository.TemporaryTaskDashboard
+import com.dailyfit.app.data.repository.TemporaryTaskRepository
 import com.dailyfit.app.domain.model.HabitFrequency
 import java.time.Clock
 import java.time.DayOfWeek
@@ -26,12 +29,14 @@ data class HabitUiState(
     val isLoading: Boolean = true,
     val dashboard: HabitDashboard? = null,
     val history: List<HabitRecordEntity> = emptyList(),
+    val temporaryTaskDashboard: TemporaryTaskDashboard? = null,
     val message: String? = null
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class HabitViewModel(
     private val repository: HabitRepository,
+    private val temporaryTaskRepository: TemporaryTaskRepository,
     private val clock: Clock = Clock.systemDefaultZone()
 ) : ViewModel() {
     private val currentDate = MutableStateFlow(LocalDate.now(clock))
@@ -43,10 +48,19 @@ class HabitViewModel(
         viewModelScope.launch {
             currentDate.flatMapLatest { date ->
                 repository.ensureTodayRecords()
-                combine(repository.observeDashboard(date), repository.observeHistory()) { dashboard, history ->
-                    HabitUiState(isLoading = false, dashboard = dashboard, history = history)
+                combine(
+                    repository.observeDashboard(date),
+                    repository.observeHistory(),
+                    temporaryTaskRepository.observeDashboard(date)
+                ) { dashboard, history, taskDashboard ->
+                    HabitUiState(
+                        isLoading = false,
+                        dashboard = dashboard,
+                        history = history,
+                        temporaryTaskDashboard = taskDashboard
+                    )
                 }
-            }.collect { _uiState.value = it }
+            }.collect { _uiState.value = it.copy(message = _uiState.value.message) }
         }
         scheduleMidnightRefresh()
     }
@@ -73,8 +87,39 @@ class HabitViewModel(
         viewModelScope.launch {
             runCatching { repository.setTodayCompletion(recordId, completed) }
                 .onSuccess { changed ->
-                    if (!changed) _uiState.value = _uiState.value.copy(message = "只能打卡或取消今天的习惯")
+                    if (!changed) showMessage("只能打卡或取消今天的习惯")
                 }
+                .onFailure { showError(it) }
+        }
+    }
+
+    fun addTemporaryTask(title: String) {
+        viewModelScope.launch {
+            runCatching { temporaryTaskRepository.createTask(title) }
+                .onFailure { showError(it) }
+        }
+    }
+
+    fun editTemporaryTask(id: String, title: String) {
+        viewModelScope.launch {
+            runCatching { temporaryTaskRepository.updateTask(id, title) }
+                .onSuccess { changed -> if (!changed) showMessage("只能修改今天创建的临时任务") }
+                .onFailure { showError(it) }
+        }
+    }
+
+    fun setTemporaryTaskCompleted(id: String, completed: Boolean) {
+        viewModelScope.launch {
+            runCatching { temporaryTaskRepository.setCompletion(id, completed) }
+                .onSuccess { changed -> if (!changed) showMessage("只能完成或取消今天的临时任务") }
+                .onFailure { showError(it) }
+        }
+    }
+
+    fun deleteTemporaryTask(id: String) {
+        viewModelScope.launch {
+            runCatching { temporaryTaskRepository.deleteTask(id) }
+                .onSuccess { changed -> if (!changed) showMessage("只能删除今天的临时任务") }
                 .onFailure { showError(it) }
         }
     }
@@ -83,8 +128,12 @@ class HabitViewModel(
         _uiState.value = _uiState.value.copy(message = null)
     }
 
+    private fun showMessage(message: String) {
+        _uiState.value = _uiState.value.copy(message = message)
+    }
+
     private fun showError(error: Throwable) {
-        _uiState.value = _uiState.value.copy(message = error.message ?: "操作失败，请重试")
+        showMessage(error.message ?: "操作失败，请重试")
     }
 
     private fun scheduleMidnightRefresh() {
@@ -101,12 +150,13 @@ class HabitViewModel(
 }
 
 class HabitViewModelFactory(
-    private val repository: HabitRepository
+    private val repository: HabitRepository,
+    private val temporaryTaskRepository: TemporaryTaskRepository
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(HabitViewModel::class.java)) {
-            return HabitViewModel(repository) as T
+            return HabitViewModel(repository, temporaryTaskRepository) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
     }
