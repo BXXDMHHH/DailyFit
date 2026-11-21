@@ -1,6 +1,7 @@
 package com.dailyfit.app.data.repository
 
 import androidx.room.withTransaction
+import com.dailyfit.app.data.local.AppMetadataEntity
 import com.dailyfit.app.data.local.DailyFitDatabase
 import com.dailyfit.app.data.local.DailyWorkoutPlanEntity
 import com.dailyfit.app.data.local.ExerciseEntity
@@ -45,6 +46,22 @@ class TrainingPlanRepository(
 
     suspend fun ensureInitialTemplate() {
         database.withTransaction {
+            val seedKey = "default_exercises_seeded_v1"
+            if (database.appMetadataDao().getValue(seedKey) == null) {
+                if (exerciseDao.getAll().isEmpty()) {
+                    val now = clock.millis()
+                    listOf(
+                        ExerciseEntity("builtin_bench_press", "卧推", "胸部", "杠铃", "", now, now),
+                        ExerciseEntity("builtin_squat", "深蹲", "腿部", "杠铃", "", now, now),
+                        ExerciseEntity("builtin_deadlift", "硬拉", "背部", "杠铃", "", now, now),
+                        ExerciseEntity("builtin_barbell_row", "杠铃划船", "背部", "杠铃", "", now, now),
+                        ExerciseEntity("builtin_lat_pulldown", "高位下拉", "背部", "高位下拉器", "", now, now),
+                        ExerciseEntity("builtin_shoulder_press", "肩推", "肩部", "哑铃", "", now, now),
+                        ExerciseEntity("builtin_lateral_raise", "侧平举", "肩部", "哑铃", "", now, now)
+                    ).forEach { exerciseDao.insert(it) }
+                }
+                database.appMetadataDao().put(AppMetadataEntity(seedKey, "true"))
+            }
             if (weeklyDao.getVersionForDate(LocalDate.now(clock).toString()) == null) {
                 val version = WeeklyWorkoutPlanVersionEntity(
                     id = UUID.randomUUID().toString(),
