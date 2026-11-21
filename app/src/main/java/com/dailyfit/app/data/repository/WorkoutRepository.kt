@@ -48,7 +48,7 @@ class WorkoutRepository(private val db:DailyFitDatabase, private val clock:Clock
    exercise?.category.orEmpty(),exercise?.equipment.orEmpty(),exercise?.notes.orEmpty(),
    order,targetSets,targetReps,targetWeight,exercise==null))
   dao.insertSets((1..targetSets).map { n -> WorkoutSessionSetEntity(id(),exId,n,
-   targetReps.toIntOrNull() ?: 0,targetWeight,null,null,false,clock.millis()) })
+   targetReps.substringBefore("-").trim().toIntOrNull() ?: 0,targetWeight,null,null,false,clock.millis()) })
  }
  suspend fun removeExercise(sessionId:String,exerciseId:String) = db.withTransaction {
   val session=dao.get(sessionId) ?: error("训练不存在"); check(session.status=="IN_PROGRESS")
