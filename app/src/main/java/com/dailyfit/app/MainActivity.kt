@@ -124,7 +124,7 @@ private fun DailyFitApp() {
                 )
                 WorkoutScreen(
                     viewModel = workoutViewModel,
-                    plans = planState.dailyPlans,
+                    plans = planState.dailyPlans.takeIf { planState.selectedDate == LocalDate.now() }.orEmpty(),
                     onBack = { navController.popBackStack() }
                 )
             }
