@@ -142,7 +142,14 @@ class WorkoutViewModel(
         val id = _state.value.session?.id ?: return
         viewModelScope.launch {
             runCatching { workouts.finish(id, status) }
-                .onSuccess { _state.update { it.copy(session = null, exercises = emptyList(), message = "训练记录已永久保存") } }
+                .onSuccess {
+                    val encouragement = when (status) {
+                        "COMPLETED" -> listOf("训练完成！每一次认真训练都在积累进步。", "今天的训练已经记录，继续稳步变强。", "做得很好，保持节奏，不必急于求成。").random()
+                        "INCOMPLETE" -> "未完成的训练也已保存，完成多少都算数。"
+                        else -> "已记录本次跳过，按自己的节奏继续。"
+                    }
+                    _state.update { it.copy(session = null, exercises = emptyList(), message = encouragement) }
+                }
                 .onFailure { message(it) }
         }
     }
