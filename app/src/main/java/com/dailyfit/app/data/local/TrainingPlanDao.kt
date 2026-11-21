@@ -31,6 +31,9 @@ interface WeeklyWorkoutPlanDao {
     @Query("SELECT * FROM weekly_workout_plan_days WHERE versionId = :versionId AND dayOfWeek = :day LIMIT 1")
     suspend fun getDay(versionId: String, day: Int): WeeklyWorkoutPlanDayEntity?
 
+    @Query("SELECT * FROM weekly_workout_plan_days WHERE versionId = :versionId ORDER BY dayOfWeek")
+    suspend fun getDays(versionId: String): List<WeeklyWorkoutPlanDayEntity>
+
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertVersion(version: WeeklyWorkoutPlanVersionEntity)
 
@@ -93,4 +96,17 @@ interface ExerciseDao {
 
     @Query("SELECT * FROM exercises WHERE id = :id LIMIT 1")
     suspend fun getById(id: String): ExerciseEntity?
+}
+
+
+@Dao
+interface WorkoutPlanExerciseDao {
+    @Query("SELECT * FROM workout_plan_exercises WHERE ownerType = :ownerType AND ownerId = :ownerId ORDER BY sortOrder")
+    suspend fun getForOwner(ownerType: String, ownerId: String): List<WorkoutPlanExerciseEntity>
+
+    @Query("DELETE FROM workout_plan_exercises WHERE ownerType = :ownerType AND ownerId = :ownerId")
+    suspend fun deleteForOwner(ownerType: String, ownerId: String): Int
+
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertAll(rows: List<WorkoutPlanExerciseEntity>)
 }
