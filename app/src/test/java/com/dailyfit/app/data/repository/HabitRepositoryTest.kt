@@ -1,0 +1,118 @@
+package com.dailyfit.app.data.repository
+
+import androidx.room.Room
+import com.dailyfit.app.data.local.DailyFitDatabase
+import com.dailyfit.app.domain.model.HabitFrequency
+import java.time.Clock
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
+import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Before
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+import org.robolectric.RuntimeEnvironment
+
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [35])
+class HabitRepositoryTest {
+    private lateinit var database: DailyFitDatabase
+    private lateinit var repository: HabitRepository
+    private val fixedClock = Clock.fixed(Instant.parse("2026-11-23T08:00:00Z"), ZoneId.of("Asia/Tokyo"))
+    private val today = LocalDate.now(fixedClock)
+
+    @Before
+    fun setUp() {
+        database = Room.inMemoryDatabaseBuilder(
+            RuntimeEnvironment.getApplication(),
+            DailyFitDatabase::class.java
+        ).allowMainThreadQueries().build()
+        repository = HabitRepository(database, fixedClock)
+    }
+
+    @After
+    fun tearDown() {
+        database.close()
+    }
+
+    @Test
+    fun createsOnlyScheduledTodayRecordsAndIsIdempotent() = runBlocking {
+        repository.createHabit("阅读", HabitFrequency.DAILY, emptySet())
+        repository.createHabit("工作日运动", HabitFrequency.WEEKDAYS, emptySet())
+        repository.createHabit("周一训练", HabitFrequency.CUSTOM, setOf(java.time.DayOfWeek.MONDAY))
+
+        repository.ensureTodayRecords()
+        val records = repository.observeDashboard(today).first().todayHabits
+        assertEquals(3, records.size)
+        repository.ensureTodayRecords()
+        assertEquals(3, repository.observeDashboard(today).first().todayHabits.size)
+    }
+
+    @Test
+    fun editingHabitDoesNotRewriteExistingRecordSnapshot() = runBlocking {
+        repository.createHabit("阅读", HabitFrequency.DAILY, emptySet())
+        val before = repository.observeDashboard(today).first().todayHabits.single().record
+
+        repository.updateHabit(
+            before.habitId,
+            "编程学习",
+            HabitFrequency.WEEKDAYS,
+            emptySet()
+        )
+
+        val after = repository.observeDashboard(today).first().todayHabits.single().record
+        assertEquals("阅读", after.habitNameSnapshot)
+        assertEquals(before.id, after.id)
+    }
+
+    @Test
+    fun deactivationKeepsHistoricalRecordButStopsFutureGeneration() = runBlocking {
+        repository.createHabit("阅读", HabitFrequency.DAILY, emptySet())
+        val item = repository.observeDashboard(today).first().todayHabits.single()
+        repository.deactivateHabit(item.habit.id)
+
+        assertTrue(repository.observeHistory().first().any { it.id == item.record.id })
+        assertTrue(repository.observeDashboard(today).first().todayHabits.isEmpty())
+    }
+
+    @Test
+    fun yesterdayRecordCannotBeCheckedInAndIsNeverAutoBackfilled() = runBlocking {
+        repository.createHabit("阅读", HabitFrequency.DAILY, emptySet())
+        val yesterday = today.minusDays(1)
+        val todayRecord = repository.observeDashboard(today).first().todayHabits.single().record
+
+        assertFalse(repository.setTodayCompletion(todayRecord.id, true).not())
+        // The repository's date synchronizer always uses the injected current date, never yesterday.
+        repository.ensureTodayRecords()
+        assertEquals(1, repository.observeHistory().first().count { it.businessDate == today.toString() })
+        assertEquals(0, repository.observeHistory().first().count { it.businessDate == yesterday.toString() })
+    }
+
+    @Test
+    fun completionCanBeCheckedAndUncheckedForToday() = runBlocking {
+        repository.createHabit("阅读", HabitFrequency.DAILY, emptySet())
+        val record = repository.observeDashboard(today).first().todayHabits.single().record
+        assertTrue(repository.setTodayCompletion(record.id, true))
+        assertTrue(repository.observeDashboard(today).first().todayHabits.single().record.isCompleted)
+        assertTrue(repository.setTodayCompletion(record.id, false))
+        assertFalse(repository.observeDashboard(today).first().todayHabits.single().record.isCompleted)
+    }
+
+    @Test
+    fun completionStatisticsUseOnlyHabitRecords() = runBlocking {
+        repository.createHabit("阅读", HabitFrequency.DAILY, emptySet())
+        repository.createHabit("拉伸", HabitFrequency.DAILY, emptySet())
+        val records = repository.observeDashboard(today).first().todayHabits
+        repository.setTodayCompletion(records.first().record.id, true)
+        val dashboard = repository.observeDashboard(today).first()
+        assertEquals(50, dashboard.todayCompletionPercent)
+        assertEquals(50, dashboard.overallCompletionPercent)
+    }
+}
