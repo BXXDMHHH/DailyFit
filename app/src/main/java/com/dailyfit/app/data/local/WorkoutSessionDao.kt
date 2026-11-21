@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.Flow
  @Query("SELECT * FROM workout_session_exercises WHERE sessionId=:id ORDER BY sortOrder") suspend fun getExercises(id:String):List<WorkoutSessionExerciseEntity>
  @Query("SELECT * FROM workout_session_exercises WHERE sessionId=:id ORDER BY sortOrder") fun observeExercises(id:String):Flow<List<WorkoutSessionExerciseEntity>>
  @Insert(onConflict=OnConflictStrategy.ABORT) suspend fun insertExercise(row:WorkoutSessionExerciseEntity)
- @Query("DELETE FROM workout_session_sets WHERE sessionExerciseId=:id") suspend fun deleteSetsForExercise(id:String):Int
+ @Query("DELETE FROM workout_session_sets WHERE sessionExerciseId=:id AND EXISTS(SELECT 1 FROM workout_session_exercises WHERE id=:id AND sessionId=:sessionId) AND EXISTS(SELECT 1 FROM workout_sessions WHERE id=:sessionId AND status='IN_PROGRESS')") suspend fun deleteSetsForExercise(id:String,sessionId:String):Int
  @Query("DELETE FROM workout_session_exercises WHERE id=:id AND sessionId=:sessionId") suspend fun deleteExercise(id:String,sessionId:String):Int
  @Query("SELECT * FROM workout_session_sets WHERE sessionExerciseId=:id ORDER BY setNumber") suspend fun getSets(id:String):List<WorkoutSessionSetEntity>
  @Query("SELECT * FROM workout_session_sets WHERE sessionExerciseId=:id ORDER BY setNumber") fun observeSets(id:String):Flow<List<WorkoutSessionSetEntity>>
