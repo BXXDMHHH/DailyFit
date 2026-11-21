@@ -61,6 +61,16 @@ abstract class DailyFitDatabase : RoomDatabase() {
     companion object {
         const val DATABASE_NAME = "dailyfit.db"
 
+        /** Fresh installs need the same database-level immutability as migrated installs. */
+        val CALLBACK = object : RoomDatabase.Callback() {
+            override fun onCreate(db: SupportSQLiteDatabase) {
+                listOf("workout_history", "workout_history_exercises", "workout_history_sets").forEach { table ->
+                    db.execSQL("CREATE TRIGGER IF NOT EXISTS immutable_${table}_update BEFORE UPDATE ON ${table} BEGIN SELECT RAISE(ABORT, 'Workout history is immutable'); END")
+                    db.execSQL("CREATE TRIGGER IF NOT EXISTS immutable_${table}_delete BEFORE DELETE ON ${table} BEGIN SELECT RAISE(ABORT, 'Workout history is immutable'); END")
+                }
+            }
+        }
+
         val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("""
