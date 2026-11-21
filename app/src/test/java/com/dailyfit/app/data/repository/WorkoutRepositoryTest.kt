@@ -88,7 +88,7 @@ class WorkoutRepositoryTest {
   planRepository.ensureDailyPrimary(monday)
 
   planRepository.saveExercise(null, "杠铃卧推", "胸部", "杠铃", "平板卧推")
-  val exercise = planRepository.observeExercises("").first().single()
+  val exercise = planRepository.observeExercises("").first().single { it.name == "杠铃卧推" }
   planRepository.savePlanExercises(
    "WEEKLY_DAY",
    mondayTemplate.id,
