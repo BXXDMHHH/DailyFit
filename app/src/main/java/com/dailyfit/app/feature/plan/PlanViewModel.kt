@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.dailyfit.app.data.local.DailyWorkoutPlanEntity
 import com.dailyfit.app.data.local.ExerciseEntity
 import com.dailyfit.app.data.local.WeeklyWorkoutPlanDayEntity
+import com.dailyfit.app.data.repository.PlanActionInput
 import com.dailyfit.app.data.repository.TrainingPlanRepository
 import com.dailyfit.app.data.repository.WeeklyPlanInput
 import com.dailyfit.app.data.repository.WorkoutPlanStatus
@@ -18,6 +19,17 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.launch
 
+data class PlanActionDraft(
+    val exerciseId: String?,
+    val name: String,
+    val category: String,
+    val equipment: String,
+    val notes: String,
+    val targetSets: Int,
+    val targetReps: String,
+    val targetWeight: String
+)
+
 data class PlanUiState(
     val isLoading: Boolean = true,
     val selectedDate: LocalDate = LocalDate.now(),
@@ -25,6 +37,9 @@ data class PlanUiState(
     val dailyPlans: List<DailyWorkoutPlanEntity> = emptyList(),
     val exercises: List<ExerciseEntity> = emptyList(),
     val exerciseQuery: String = "",
+    val editingActionOwnerType: String? = null,
+    val editingActionOwnerId: String? = null,
+    val planActions: List<PlanActionDraft> = emptyList(),
     val message: String? = null
 )
 
@@ -56,7 +71,15 @@ class PlanViewModel(
                         exerciseQuery = exerciseQuery.value
                     )
                 }
-            }.collect { next -> _uiState.value = next.copy(message = _uiState.value.message) }
+            }.collect { next ->
+                val current = _uiState.value
+                _uiState.value = next.copy(
+                    message = current.message,
+                    editingActionOwnerType = current.editingActionOwnerType,
+                    editingActionOwnerId = current.editingActionOwnerId,
+                    planActions = current.planActions
+                )
+            }
         }
     }
 
@@ -98,7 +121,84 @@ class PlanViewModel(
         viewModelScope.launch { runCatching { repository.deleteExercise(id) }.onFailure { showError(it) } }
     }
 
+    fun openActionEditor(ownerType: String, ownerId: String) {
+        viewModelScope.launch {
+            runCatching { repository.getPlanExercises(ownerType, ownerId) }
+                .onSuccess { rows ->
+                    _uiState.value = _uiState.value.copy(
+                        editingActionOwnerType = ownerType,
+                        editingActionOwnerId = ownerId,
+                        planActions = rows.map {
+                            PlanActionDraft(
+                                it.exerciseId, it.exerciseNameSnapshot, it.categorySnapshot,
+                                it.equipmentSnapshot, it.notesSnapshot, it.targetSets,
+                                it.targetReps, it.targetWeight.toString()
+                            )
+                        }
+                    )
+                }
+                .onFailure { showError(it) }
+        }
+    }
+
+    fun addAction(exercise: ExerciseEntity) {
+        val current = _uiState.value.planActions
+        _uiState.value = _uiState.value.copy(
+            planActions = current + PlanActionDraft(
+                exercise.id, exercise.name, exercise.category, exercise.equipment,
+                exercise.notes, 3, "8-12", "0"
+            )
+        )
+    }
+
+    fun updateAction(index: Int, targetSets: String? = null, targetReps: String? = null, targetWeight: String? = null) {
+        val actions = _uiState.value.planActions.toMutableList()
+        val old = actions.getOrNull(index) ?: return
+        actions[index] = old.copy(
+            targetSets = targetSets?.toIntOrNull()?.coerceIn(1, 30) ?: old.targetSets,
+            targetReps = targetReps ?: old.targetReps,
+            targetWeight = targetWeight ?: old.targetWeight
+        )
+        _uiState.value = _uiState.value.copy(planActions = actions)
+    }
+
+    fun removeAction(index: Int) {
+        _uiState.value = _uiState.value.copy(planActions = _uiState.value.planActions.filterIndexed { i, _ -> i != index })
+    }
+
+    fun saveActionEditor() {
+        val state = _uiState.value
+        val ownerType = state.editingActionOwnerType ?: return
+        val ownerId = state.editingActionOwnerId ?: return
+        viewModelScope.launch {
+            runCatching {
+                repository.savePlanExercises(ownerType, ownerId, state.planActions.map {
+                    PlanActionInput(
+                        it.exerciseId, it.name, it.category, it.equipment, it.notes,
+                        it.targetSets, it.targetReps, it.targetWeight.toDoubleOrNull() ?: -1.0
+                    )
+                })
+            }.onSuccess {
+                _uiState.value = _uiState.value.copy(
+                    editingActionOwnerType = null,
+                    editingActionOwnerId = null,
+                    planActions = emptyList(),
+                    message = "计划动作已保存"
+                )
+            }.onFailure { showError(it) }
+        }
+    }
+
+    fun closeActionEditor() {
+        _uiState.value = _uiState.value.copy(
+            editingActionOwnerType = null,
+            editingActionOwnerId = null,
+            planActions = emptyList()
+        )
+    }
+
     fun consumeMessage() { _uiState.value = _uiState.value.copy(message = null) }
+
     private fun showError(error: Throwable) {
         _uiState.value = _uiState.value.copy(message = error.message ?: "操作失败，请重试")
     }
