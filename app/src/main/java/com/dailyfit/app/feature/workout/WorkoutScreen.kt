@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
@@ -102,33 +101,38 @@ fun WorkoutScreen(
                             var reps by remember(set.id, set.actualReps) {
                                 mutableStateOf(set.actualReps?.toString().orEmpty())
                             }
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text("第${set.setNumber}组", Modifier.width(54.dp))
-                                OutlinedTextField(
-                                    value = weight,
-                                    onValueChange = {
-                                        weight = it
-                                        if (it.isBlank() || it.toDoubleOrNull() != null) viewModel.updateSet(set, it, reps, set.isCompleted)
-                                    },
-                                    modifier = Modifier.weight(1f),
-                                    label = { Text("实际 kg") },
-                                    singleLine = true
-                                )
-                                OutlinedTextField(
-                                    value = reps,
-                                    onValueChange = {
-                                        reps = it
-                                        if (it.isBlank() || it.toIntOrNull() != null) viewModel.updateSet(set, weight, it, set.isCompleted)
-                                    },
-                                    modifier = Modifier.weight(1f),
-                                    label = { Text("实际次数") },
-                                    singleLine = true
-                                )
-                                Checkbox(
-                                    checked = set.isCompleted,
-                                    onCheckedChange = { viewModel.updateSet(set, weight, reps, it) }
-                                )
-                                TextButton(onClick = { viewModel.removeSet(exercise.row.id, set.id) }) { Text("删组") }
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text("第${set.setNumber}组", modifier = Modifier.weight(1f))
+                                    Checkbox(
+                                        checked = set.isCompleted,
+                                        onCheckedChange = { viewModel.updateSet(set, weight, reps, it) }
+                                    )
+                                    Text("完成")
+                                    TextButton(onClick = { viewModel.removeSet(exercise.row.id, set.id) }) { Text("删组") }
+                                }
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    OutlinedTextField(
+                                        value = weight,
+                                        onValueChange = {
+                                            weight = it
+                                            if (it.isBlank() || it.toDoubleOrNull() != null) viewModel.updateSet(set, it, reps, set.isCompleted)
+                                        },
+                                        modifier = Modifier.weight(1f),
+                                        label = { Text("实际 kg") },
+                                        singleLine = true
+                                    )
+                                    OutlinedTextField(
+                                        value = reps,
+                                        onValueChange = {
+                                            reps = it
+                                            if (it.isBlank() || it.toIntOrNull() != null) viewModel.updateSet(set, weight, it, set.isCompleted)
+                                        },
+                                        modifier = Modifier.weight(1f),
+                                        label = { Text("实际次数") },
+                                        singleLine = true
+                                    )
+                                }
                             }
                         }
                         Row {
