@@ -157,7 +157,7 @@ class HabitRepositoryTest {
         oldDatabase.close()
 
         val migrated = Room.databaseBuilder(context, DailyFitDatabase::class.java, databaseName)
-            .addMigrations(DailyFitDatabase.MIGRATION_1_2, DailyFitDatabase.MIGRATION_2_3)
+            .addMigrations(DailyFitDatabase.MIGRATION_1_2, DailyFitDatabase.MIGRATION_2_3, DailyFitDatabase.MIGRATION_3_4)
             .build()
         assertEquals("preserved", migrated.appMetadataDao().getValue("existing"))
         migrated.close()
