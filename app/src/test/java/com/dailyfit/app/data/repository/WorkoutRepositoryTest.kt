@@ -52,7 +52,7 @@ class WorkoutRepositoryTest {
   val sid=repo.start(plan, emptyList())
   repo.addExercise(sid, ExerciseEntity("history-ex", "跑步", "有氧", "跑步机", "", 1, 1))
   val sessionExercise=db.workoutSessionDao().getExercises(sid).single()
-  val sessionSet=db.workoutSessionDao().getSets(sessionExercise.id).single()
+  val sessionSet=db.workoutSessionDao().getSets(sessionExercise.id).first()
   repo.updateSet(sid, sessionSet.id, 8.0, 5, true)
   val hid=repo.finish(sid)
   val historyExercise=repo.observeHistoryExercises(hid).first().single()
