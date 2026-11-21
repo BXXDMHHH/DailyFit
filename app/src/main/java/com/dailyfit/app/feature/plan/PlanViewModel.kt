@@ -25,7 +25,7 @@ data class PlanActionDraft(
     val category: String,
     val equipment: String,
     val notes: String,
-    val targetSets: Int,
+    val targetSets: String,
     val targetReps: String,
     val targetWeight: String
 )
@@ -175,7 +175,7 @@ class PlanViewModel(
                 repository.savePlanExercises(ownerType, ownerId, state.planActions.map {
                     PlanActionInput(
                         it.exerciseId, it.name, it.category, it.equipment, it.notes,
-                        it.targetSets, it.targetReps, it.targetWeight.toDoubleOrNull() ?: -1.0
+                        it.targetSets.toIntOrNull() ?: -1, it.targetReps, it.targetWeight.toDoubleOrNull() ?: -1.0
                     )
                 })
             }.onSuccess {
