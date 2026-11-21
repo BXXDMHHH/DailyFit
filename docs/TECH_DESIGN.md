@@ -139,7 +139,7 @@ Repository 接口放在 domain 层，Room 实现放在 data 层。ViewModel 通�
 - `isOverride` INTEGER NOT NULL DEFAULT 0
 - `createdAt`, `updatedAt` INTEGER NOT NULL
 
-索引：(`businessDate`, `planType`)；UNIQUE(`businessDate`, `planType`) 保证每天最多一份 MAIN 和一份 EXTRA（如未来确认需要多份额外训练，再通过迁移调整约束）。创建每日安排时复制模板标题和描述快照。单日调整只更新该日记录，不回写周模板。模板变更不得改写已经生成的日期安排。
+索引：(`businessDate`, `planType`)。每天最多一份 MAIN 由 Repository 在事务中校验；EXTRA 允许同一天存在多份，以满足额外训练需求。创建每日安排时复制模板标题和描述快照。单日调整只更新该日记录，不回写周模板。模板变更不得改写已经生成的日期安排。
 
 #### Exercise（独立动作库）
 - `id` TEXT PRIMARY KEY
