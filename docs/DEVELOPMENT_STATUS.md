@@ -5,7 +5,7 @@
 > 当前阶段：阶段 3 — 训练计划模块
 
 ## 1. 仓库现状
-Android Gradle 单模块工程，采用 Kotlin、Jetpack Compose、Material 3、Navigation Compose、ViewModel + StateFlow、Room、Coroutines。阶段 0、阶段 1 和阶段 2 已实现；阶段 2 CI 最终结果以本次 GitHub Actions 为准。
+Android Gradle 单模块工程，采用 Kotlin、Jetpack Compose、Material 3、Navigation Compose、ViewModel + StateFlow、Room、Coroutines。阶段 0、阶段 1 和阶段 2 已实现；阶段 2 GitHub Actions #44926740181 全部通过。
 
 ## 2. 已完成阶段
 
@@ -64,9 +64,29 @@ Android Gradle 单模块工程，采用 Kotlin、Jetpack Compose、Material 3、
 ## 8. 阶段跟踪
 - [x] 阶段 0：工程基础与 CI
 - [x] 阶段 1：日常习惯模块
-- [x] 阶段 2：临时任务模块（实现完成，等待 CI 最终验收）
+- [x] 阶段 2：临时任务模块（20 项单元测试通过，Debug APK 构建通过）
 - [ ] 阶段 3：训练计划
 - [ ] 阶段 4：动作库
 - [ ] 阶段 5：训练执行与中断恢复
 - [ ] 阶段 6：训练历史永久只读
 - [ ] 阶段 7：统计与体验整合
+
+
+## 9. 阶段 2 CI 最终验收
+
+<badge color="success">全部通过</badge>
+
+构建记录：[GitHub Actions #44926740181](https://github.com/BXXDMHHH/DailyFit/actions/runs/44926740181)
+
+| 检查项 | 结果 | 详情 |
+|---|---|---|
+| Room Schema 生成 | 通过 | v3 Schema 已生成并归档 |
+| Kotlin 主源码编译 | 通过 | KSP / Kotlin 编译流程成功 |
+| 习惯 Repository / Room 测试 | 通过 | 9 项，0 失败 |
+| 习惯频率规则测试 | 通过 | 3 项，0 失败 |
+| 临时任务 Repository / Room 测试 | 通过 | 8 项，0 失败 |
+| 单元测试合计 | 通过 | 20 项，0 失败 |
+| Debug APK | 通过 | assembleDebug 成功，Artifact 已上传 |
+| 数据库迁移 | 通过 | v1→v2→v3 和 v2→v3 测试通过 |
+
+真机/模拟器 UI 与生命周期验收仍待用户本地完成。

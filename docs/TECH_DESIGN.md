@@ -71,7 +71,7 @@ HabitEntity 保存 UUID、名称、DAILY / WEEKDAYS / CUSTOM 频率、自定义 
 当前 Room 数据库版本为 3：v1 为 app_metadata；v2 保留 app_metadata 并新增 habits、habit_records；v3 新增 temporary_tasks，以及 businessDate、businessDate+isCompleted 索引。使用显式 MIGRATION_1_2 和 MIGRATION_2_3；不使用 destructive migration。v1→v3 迁移链保留旧 metadata、习惯和打卡数据。
 
 ## 8. 测试策略
-阶段 1 习惯测试继续运行，验证原习惯逻辑不回归。阶段 2新增 Room / Repository 测试覆盖创建、编辑、删除、完成/取消、空标题、跨日隔离、历史保留、统计隔离和 v2→v3 迁移。CI 执行 Room Schema 生成、全部 JVM 单元测试和 Debug APK 构建。
+阶段 1 习惯测试继续运行，验证原习惯逻辑不回归。阶段 2新增 Room / Repository 测试覆盖创建、编辑、删除、完成/取消、空标题、跨日隔离、历史保留、统计隔离和 v2→v3 迁移。CI 执行 Room Schema 生成、全部 JVM 单元测试和 Debug APK 构建。阶段 2 GitHub Actions #44926740181：20 项单元测试全部通过（习惯 12 项、临时任务 8 项），Debug APK 构建成功。
 
 ## 9. 后续阶段设计基线
 后续按单数据库、稳定 UUID、显式迁移原则加入 WeeklyWorkoutPlan、DailyWorkoutPlan、Exercise、WorkoutSession、WorkoutExercise 和 WorkoutSet。正式训练保存时复制动作名称和每组数据快照；正式历史只读保护需由 Repository API 和 SQLite 触发器双层实现。
