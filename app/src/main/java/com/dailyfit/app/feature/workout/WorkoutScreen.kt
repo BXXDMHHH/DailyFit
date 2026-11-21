@@ -41,6 +41,7 @@ fun WorkoutScreen(
     var showLibrary by remember { mutableStateOf(false) }
     var temporaryName by remember { mutableStateOf("") }
     var showTemporaryDialog by remember { mutableStateOf(false) }
+    var showDiscardConfirmation by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) { viewModel.loadLibrary() }
 
@@ -135,13 +136,31 @@ fun WorkoutScreen(
                 }
             }
             item {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = { viewModel.finish("INCOMPLETE") }) { Text("未完成并保存") }
-                    OutlinedButton(onClick = { viewModel.finish("SKIPPED") }) { Text("跳过并保存") }
-                    Button(onClick = { viewModel.finish("COMPLETED") }) { Text("完成训练") }
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(onClick = { viewModel.finish("INCOMPLETE") }) { Text("未完成并保存") }
+                        OutlinedButton(onClick = { viewModel.finish("SKIPPED") }) { Text("跳过并保存") }
+                        Button(onClick = { viewModel.finish("COMPLETED") }) { Text("完成训练") }
+                    }
+                    TextButton(onClick = { showDiscardConfirmation = true }) { Text("放弃本次训练（不保存历史）") }
                 }
             }
         }
+    }
+
+    if (showDiscardConfirmation) {
+        AlertDialog(
+            onDismissRequest = { showDiscardConfirmation = false },
+            title = { Text("放弃本次训练？") },
+            text = { Text("将删除这次尚未完成的训练草稿，不会生成正式训练历史。此操作不可撤销。") },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.discard()
+                    showDiscardConfirmation = false
+                }) { Text("确认放弃") }
+            },
+            dismissButton = { TextButton(onClick = { showDiscardConfirmation = false }) { Text("继续训练") } }
+        )
     }
 
     if (showLibrary) {
