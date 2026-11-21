@@ -10,6 +10,7 @@ import com.dailyfit.app.data.repository.TrainingPlanRepository
 class DailyFitApplication : Application() {
     val database: DailyFitDatabase by lazy {
         Room.databaseBuilder(applicationContext, DailyFitDatabase::class.java, DailyFitDatabase.DATABASE_NAME)
+            .addCallback(DailyFitDatabase.CALLBACK)
             .addMigrations(
                 DailyFitDatabase.MIGRATION_1_2,
                 DailyFitDatabase.MIGRATION_2_3,
