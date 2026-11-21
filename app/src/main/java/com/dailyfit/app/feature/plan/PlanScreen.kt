@@ -208,7 +208,7 @@ fun PlanScreen(viewModel: PlanViewModel, modifier: Modifier = Modifier) {
                                 }
                                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                     OutlinedTextField(
-                                        value = action.targetSets.toString(),
+                                        value = action.targetSets,
                                         onValueChange = { viewModel.updateAction(index, targetSets = it) },
                                         label = { Text("组数") },
                                         modifier = Modifier.weight(1f),
