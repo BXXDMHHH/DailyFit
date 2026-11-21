@@ -186,6 +186,21 @@ class TrainingPlanRepository(
         return planExerciseDao.getForOwner(ownerType, ownerId)
     }
 
+    /** Explicitly replaces one dated plan's actions with the current weekly template actions. */
+    suspend fun importWeeklyActions(date: LocalDate, dailyPlanId: String) {
+        database.withTransaction {
+            val dailyPlan = dailyDao.getById(dailyPlanId) ?: error("当天训练安排不存在")
+            require(dailyPlan.businessDate == date.toString()) { "训练日期不匹配" }
+            val version = weeklyDao.getVersionForDate(date.toString()) ?: error("没有可用的每周训练模板")
+            val day = weeklyDao.getDay(version.id, date.dayOfWeek.value) ?: error("每周模板缺少当天配置")
+            val copied = planExerciseDao.getForOwner("WEEKLY_DAY", day.id).map { action ->
+                action.copy(id = UUID.randomUUID().toString(), ownerType = "DAILY_PLAN", ownerId = dailyPlanId)
+            }
+            planExerciseDao.deleteForOwner("DAILY_PLAN", dailyPlanId)
+            if (copied.isNotEmpty()) planExerciseDao.insertAll(copied)
+        }
+    }
+
     suspend fun savePlanExercises(ownerType: String, ownerId: String, actions: List<PlanActionInput>) {
         require(ownerType == "WEEKLY_DAY" || ownerType == "DAILY_PLAN")
         require(actions.all { it.name.isNotBlank() && it.targetSets in 1..30 && it.targetReps.isNotBlank() && it.targetWeight >= 0.0 }) {
