@@ -85,6 +85,9 @@ interface ExerciseDao {
     @Query("SELECT * FROM exercises ORDER BY name COLLATE NOCASE")
     fun observeAll(): Flow<List<ExerciseEntity>>
 
+    @Query("SELECT * FROM exercises ORDER BY name COLLATE NOCASE")
+    suspend fun getAll(): List<ExerciseEntity>
+
     @Query("SELECT * FROM exercises WHERE name LIKE '%' || :query || '%' OR category LIKE '%' || :query || '%' ORDER BY name COLLATE NOCASE")
     fun search(query: String): Flow<List<ExerciseEntity>>
 
