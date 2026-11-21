@@ -6,6 +6,7 @@ import com.dailyfit.app.data.local.DailyWorkoutPlanEntity
 import com.dailyfit.app.data.local.ExerciseEntity
 import com.dailyfit.app.data.local.WeeklyWorkoutPlanDayEntity
 import com.dailyfit.app.data.local.WeeklyWorkoutPlanVersionEntity
+import com.dailyfit.app.data.local.WorkoutPlanExerciseEntity
 import java.time.Clock
 import java.time.LocalDate
 import java.util.UUID
@@ -22,6 +23,17 @@ data class WeeklyPlanInput(
     val isRestDay: Boolean = false
 )
 
+data class PlanActionInput(
+    val exerciseId: String?,
+    val name: String,
+    val category: String = "",
+    val equipment: String = "",
+    val notes: String = "",
+    val targetSets: Int = 3,
+    val targetReps: String = "8-12",
+    val targetWeight: Double = 0.0
+)
+
 class TrainingPlanRepository(
     private val database: DailyFitDatabase,
     private val clock: Clock = Clock.systemDefaultZone()
@@ -29,6 +41,7 @@ class TrainingPlanRepository(
     private val weeklyDao = database.weeklyWorkoutPlanDao()
     private val dailyDao = database.dailyWorkoutPlanDao()
     private val exerciseDao = database.exerciseDao()
+    private val planExerciseDao = database.workoutPlanExerciseDao()
 
     suspend fun ensureInitialTemplate() {
         database.withTransaction {
@@ -58,13 +71,17 @@ class TrainingPlanRepository(
         require(days.all { it.title.isNotBlank() || it.isRestDay }) { "训练日名称不能为空" }
 
         database.withTransaction {
+            // Preserve each weekday's configured actions when creating a new template version.
+            val previousVersion = weeklyDao.getVersionForDate(effectiveFrom.toString())
+            val previousDays = previousVersion?.let { weeklyDao.getDays(it.id) }.orEmpty()
+            val previousByWeekday = previousDays.associateBy { it.dayOfWeek }
             val version = WeeklyWorkoutPlanVersionEntity(
                 id = UUID.randomUUID().toString(),
                 effectiveFromDate = effectiveFrom.toString(),
                 createdAt = clock.millis()
             )
             weeklyDao.insertVersion(version)
-            weeklyDao.insertDays(days.sortedBy { it.dayOfWeek }.map {
+            val newDays = days.sortedBy { it.dayOfWeek }.map {
                 WeeklyWorkoutPlanDayEntity(
                     id = UUID.randomUUID().toString(),
                     versionId = version.id,
@@ -73,7 +90,16 @@ class TrainingPlanRepository(
                     notes = it.notes.trim(),
                     isRestDay = it.isRestDay
                 )
-            })
+            }
+            weeklyDao.insertDays(newDays)
+            newDays.forEach { newDay ->
+                previousByWeekday[newDay.dayOfWeek]?.let { oldDay ->
+                    val copied = planExerciseDao.getForOwner("WEEKLY_DAY", oldDay.id).map { old ->
+                        old.copy(id = UUID.randomUUID().toString(), ownerId = newDay.id)
+                    }
+                    if (copied.isNotEmpty()) planExerciseDao.insertAll(copied)
+                }
+            }
         }
     }
 
@@ -91,9 +117,10 @@ class TrainingPlanRepository(
                 weeklyDao.getVersionForDate(date.toString())
             } ?: return@withTransaction
             val day = weeklyDao.getDay(version.id, date.dayOfWeek.value) ?: return@withTransaction
+            val planId = UUID.randomUUID().toString()
             dailyDao.insert(
                 DailyWorkoutPlanEntity(
-                    id = UUID.randomUUID().toString(),
+                    id = planId,
                     businessDate = date.toString(),
                     title = day.title,
                     notes = day.notes,
@@ -104,6 +131,10 @@ class TrainingPlanRepository(
                     updatedAt = clock.millis()
                 )
             )
+            val copiedActions = planExerciseDao.getForOwner("WEEKLY_DAY", day.id).map { action ->
+                action.copy(id = UUID.randomUUID().toString(), ownerType = "DAILY_PLAN", ownerId = planId)
+            }
+            if (copiedActions.isNotEmpty()) planExerciseDao.insertAll(copiedActions)
         }
     }
 
@@ -142,10 +173,45 @@ class TrainingPlanRepository(
     }
 
     suspend fun deleteExtra(date: LocalDate, id: String): Boolean =
-        dailyDao.deleteExtra(id, date.toString()) > 0
+        database.withTransaction {
+            planExerciseDao.deleteForOwner("DAILY_PLAN", id)
+            dailyDao.deleteExtra(id, date.toString()) > 0
+        }
 
     suspend fun setStatus(date: LocalDate, id: String, status: WorkoutPlanStatus): Boolean =
         dailyDao.updateStatus(id, date.toString(), status.name, clock.millis()) > 0
+
+    suspend fun getPlanExercises(ownerType: String, ownerId: String): List<WorkoutPlanExerciseEntity> {
+        require(ownerType == "WEEKLY_DAY" || ownerType == "DAILY_PLAN")
+        return planExerciseDao.getForOwner(ownerType, ownerId)
+    }
+
+    suspend fun savePlanExercises(ownerType: String, ownerId: String, actions: List<PlanActionInput>) {
+        require(ownerType == "WEEKLY_DAY" || ownerType == "DAILY_PLAN")
+        require(actions.all { it.name.isNotBlank() && it.targetSets in 1..30 && it.targetReps.isNotBlank() && it.targetWeight >= 0.0 }) {
+            "动作名称、目标组数、次数或重量不合法"
+        }
+        database.withTransaction {
+            planExerciseDao.deleteForOwner(ownerType, ownerId)
+            val rows = actions.mapIndexed { index, action ->
+                WorkoutPlanExerciseEntity(
+                    id = UUID.randomUUID().toString(),
+                    ownerType = ownerType,
+                    ownerId = ownerId,
+                    exerciseId = action.exerciseId,
+                    exerciseNameSnapshot = action.name.trim(),
+                    categorySnapshot = action.category.trim(),
+                    equipmentSnapshot = action.equipment.trim(),
+                    notesSnapshot = action.notes.trim(),
+                    sortOrder = index,
+                    targetSets = action.targetSets,
+                    targetReps = action.targetReps.trim(),
+                    targetWeight = action.targetWeight
+                )
+            }
+            if (rows.isNotEmpty()) planExerciseDao.insertAll(rows)
+        }
+    }
 
     fun observeExercises(query: String): Flow<List<ExerciseEntity>> =
         if (query.isBlank()) exerciseDao.observeAll() else exerciseDao.search(query.trim())
