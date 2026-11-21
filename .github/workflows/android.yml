@@ -24,12 +24,14 @@ jobs:
         run: gradle testDebugUnitTest
       - name: Assemble debug APK
         run: gradle assembleDebug
-      - name: Upload unit test reports
+      - name: Upload unit test reports and Room schemas
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: unit-test-reports
-          path: app/build/test-results/testDebugUnitTest/
+          name: test-reports-and-room-schemas
+          path: |
+            app/build/test-results/testDebugUnitTest/
+            app/schemas/
           if-no-files-found: warn
       - name: Upload debug APK
         if: success()
