@@ -30,6 +30,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import com.dailyfit.app.data.local.DailyWorkoutPlanEntity
 import com.dailyfit.app.data.local.HabitEntity
 import com.dailyfit.app.data.local.TemporaryTaskEntity
 import com.dailyfit.app.data.repository.HabitItem
@@ -43,6 +44,7 @@ fun HomeScreen(
     state: HabitUiState,
     viewModel: HabitViewModel,
     onStartWorkout: () -> Unit = {},
+    todayWorkoutPlans: List<DailyWorkoutPlanEntity> = emptyList(),
     modifier: Modifier = Modifier
 ) {
     val dashboard = state.dashboard
@@ -162,6 +164,23 @@ fun HomeScreen(
             Card(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text("今日训练", style = MaterialTheme.typography.titleMedium)
+                    if (todayWorkoutPlans.isEmpty()) {
+                        Text("正在加载今日训练安排，或今天尚无安排", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    } else {
+                        todayWorkoutPlans.forEach { plan ->
+                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                Text(plan.title, modifier = Modifier.weight(1f))
+                                Text(
+                                    when (plan.status) {
+                                        "COMPLETED" -> "已完成"
+                                        "SKIPPED" -> "已跳过"
+                                        else -> "未完成"
+                                    },
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
                     Text("查看今日训练安排并记录每组实际数据", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Button(onClick = onStartWorkout) { Text("开始训练") }
                 }
