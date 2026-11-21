@@ -9,7 +9,7 @@
 - 本地优先，Room 是业务数据唯一可信来源；V1.0 不引入账号、服务端或云同步。
 - 单 Activity、单 app module、单 Room 数据库；DAO + Repository，不引入不必要的 UseCase 或 DI 框架。
 - 业务主键使用稳定 UUID；日期统一保存 ISO-8601 yyyy-MM-dd，时间戳使用 epoch millis。
-- 正式训练历史未来实现时必须永久只读、禁止修改和删除。
+- 正式训练历史必须永久只读、禁止修改和删除；正式保存时必须包含动作名称和训练组数据快照。
 
 ## 2. 分层职责
 | 层 | 职责 |
@@ -26,52 +26,71 @@ Repository 直接构造注入到 ViewModel Factory；当前规模不需要额外
 HabitEntity 保存 UUID、名称、DAILY / WEEKDAYS / CUSTOM 频率、自定义 ISO 星期、启停状态和时间戳。HabitRecordEntity 保存 UUID、habitId、businessDate、habitNameSnapshot、完成状态、完成时间和创建时间。UNIQUE(habitId, businessDate)，并为 businessDate 建索引。外键删除策略 RESTRICT；习惯停用不删除历史。修改习惯不回写记录快照；历史打卡不可补签。
 
 ## 4. 已实现：临时任务
+TemporaryTaskEntity 保存 UUID、businessDate、title、isCompleted、createdAt、updatedAt、completedAt。按 businessDate 和 businessDate + isCompleted 建索引。创建日期固定；仅当天允许编辑、完成/取消和删除。历史任务保留用于独立统计，不参与固定习惯完成率。
 
-### 4.1 TemporaryTaskEntity
-- id：UUID String 主键。
-- businessDate：创建时设备本地日期，ISO yyyy-MM-dd。
-- title：任务名称。
-- isCompleted：完成状态。
-- createdAt、updatedAt：epoch millis。
-- completedAt：完成时间，可空。
+## 5. 已实现：每周训练计划与单日安排
 
-索引：businessDate 用于按日期查询；businessDate + isCompleted 用于按日期和状态聚合。临时任务不关联 Habit，保持模块独立。
+### 5.1 WeeklyWorkoutPlanVersionEntity
+- id：UUID 主键。
+- effectiveFromDate：版本生效日期。
+- createdAt：版本创建时间。
+- 通过 effectiveFromDate <= 查询日期，按生效日期和创建时间倒序选择适用版本。
+- 修改周计划不更新旧版本，而是插入新版本；过去已生成的每日安排不被覆盖。
 
-### 4.2 TemporaryTaskDao
-- observeForDate(date)：只查询指定日期。
-- observeAll()：历史统计使用。
-- insert()：创建当天任务。
-- updateToday()、setTodayCompletion()、deleteToday()：所有变更 SQL 均带业务日期条件，避免旧任务被改写。
+### 5.2 WeeklyWorkoutPlanDayEntity
+- id：UUID 主键。
+- versionId：所属周模板版本，外键引用版本表，删除版本时级联删除。
+- dayOfWeek：ISO 星期，周一=1 至周日=7。
+- title、notes、isRestDay：当天安排内容。
+- UNIQUE(versionId, dayOfWeek)，确保每个版本完整七天且每一天唯一。
 
-### 4.3 TemporaryTaskRepository
-- 创建任务时从注入 Clock 获取当前本地日期，写入 businessDate。
-- 只允许修改、完成/取消完成、删除当前日期的任务。
-- 旧日期任务保留在表中，不会自动复制到新日期。
-- Dashboard 提供今日任务、今日完成率和临时任务累计完成率。
-- 所有统计仅基于 temporary_tasks，不读取 habit_records。
+### 5.3 DailyWorkoutPlanEntity
+- id：UUID 主键。
+- businessDate：对应日期。
+- title、notes：当天快照内容。
+- status：PLANNED / COMPLETED / SKIPPED。
+- isPrimary：区分主要安排和额外安排。
+- sourceVersionId：生成时采用的周模板版本 ID 快照，不建立删除级联。
+- createdAt、updatedAt：时间戳。
+- 首次查看日期时，Repository 根据当日生效周模板创建主要安排；该记录后续独立保存。
+- 编辑主要安排只更新该日期记录，不更新周模板；额外安排独立插入和删除。
+- 修改周模板不会重写已经生成的 DailyWorkoutPlan。
 
-## 5. 日期与统计规则
+### 5.4 ExerciseEntity
+- id：UUID 主键。
+- name、category、equipment、notes：动作信息。
+- createdAt、updatedAt：时间戳。
+- 支持全量观察和按名称/类别 LIKE 搜索。
+- 动作库不与周计划或每日计划建立级联外键，避免动作库删除导致计划数据丢失。
+- 正式训练历史尚未实现；后续历史必须复制 exerciseNameSnapshot 等必要信息，不能依赖当前动作库行。
+
+## 6. 日期与统计规则
 - HabitRepository 和 TemporaryTaskRepository 各自独立统计。
 - 固定习惯完成率只统计 HabitRecord。
-- 临时任务今日完成率 = 今日已完成临时任务数 / 今日临时任务总数。
-- 临时任务累计完成率 = 所有日期已完成临时任务数 / 所有临时任务总数。
-- 分母为 0 时显示 0%。
-- 日期变化由现有 HabitViewModel 的 ON_RESUME 和午夜刷新机制驱动，两个模块使用同一 LocalDate。
-- 临时任务不执行日期生成；新日期只显示新日期创建的任务。
+- 临时任务今日完成率 = 今日已完成临时任务数 / 今日临时任务总数；累计统计也只统计临时任务。
+- 训练安排状态只作用于对应日期记录；跳过或未完成不修改周模板，不影响下一周。
+- 设备当前时区 LocalDate 为业务日期，数据库保存 ISO 日期字符串。
 
-## 6. 首页与 ViewModel
-- HomeScreen 包含今日习惯、固定习惯管理、今日临时任务、今日训练占位卡片。
-- 临时任务卡片支持新增、勾选/取消、编辑、删除。
-- HabitUiState 增加独立 TemporaryTaskDashboard。
-- HabitViewModel 复用现有日期 StateFlow，将 HabitDashboard、习惯历史、TemporaryTaskDashboard 合并为首页状态。
-- DailyFitApplication 提供同一 Room 数据库的两个独立 Repository。
-- MainActivity 的 ViewModel Factory 同时注入两个 Repository。
+## 7. 首页、计划页与 ViewModel
+- HomeScreen 继续显示习惯、临时任务和训练入口占位。
+- PlanScreen 提供每周模板、单日安排、额外训练和动作库管理/搜索。
+- PlanViewModel 通过 StateFlow 暴露所选日期、周模板、每日安排、动作库和搜索词。
+- TrainingPlanRepository 负责周版本生成、每日主要安排快照、额外训练 CRUD、状态变更和动作库 CRUD。
+- DailyFitApplication 提供 TrainingPlanRepository；MainActivity 注入 PlanViewModel。
+- Compose 页面不直接访问 DAO。
 
-## 7. 数据库版本和迁移
-当前 Room 数据库版本为 3：v1 为 app_metadata；v2 保留 app_metadata 并新增 habits、habit_records；v3 新增 temporary_tasks，以及 businessDate、businessDate+isCompleted 索引。使用显式 MIGRATION_1_2 和 MIGRATION_2_3；不使用 destructive migration。v1→v3 迁移链保留旧 metadata、习惯和打卡数据。
+## 8. 数据库版本和迁移
+当前 Room 数据库版本为 4：
+- v1：app_metadata。
+- v2：habits、habit_records。
+- v3：temporary_tasks。
+- v4：weekly_workout_plan_versions、weekly_workout_plan_days、daily_workout_plans、exercises。
+- 使用显式 MIGRATION_1_2、MIGRATION_2_3、MIGRATION_3_4；不使用 destructive migration。
+- v3→v4 只新增表和索引，不改写既有习惯、打卡和临时任务数据。
+- Room Schema 2、3、4 随项目提交。
 
-## 8. 测试策略
-阶段 1 习惯测试继续运行，验证原习惯逻辑不回归。阶段 2新增 Room / Repository 测试覆盖创建、编辑、删除、完成/取消、空标题、跨日隔离、历史保留、统计隔离和 v2→v3 迁移。CI 执行 Room Schema 生成、全部 JVM 单元测试和 Debug APK 构建。阶段 2 GitHub Actions #44926740181：20 项单元测试全部通过（习惯 12 项、临时任务 8 项），Debug APK 构建成功。
+## 9. 测试策略
+阶段 1、2 的既有测试继续运行。阶段 3 新增 TrainingPlanRepositoryTest 覆盖七天初始化、有效日期版本切换、单日覆盖隔离、历史快照稳定、额外训练与状态、非法模板校验、动作库 CRUD/搜索、v3→v4 迁移。阶段 3 GitHub Actions #44929615591：29 项单元测试全部通过，Debug APK 构建成功。
 
-## 9. 后续阶段设计基线
-后续按单数据库、稳定 UUID、显式迁移原则加入 WeeklyWorkoutPlan、DailyWorkoutPlan、Exercise、WorkoutSession、WorkoutExercise 和 WorkoutSet。正式训练保存时复制动作名称和每组数据快照；正式历史只读保护需由 Repository API 和 SQLite 触发器双层实现。
+## 10. 后续阶段设计基线
+训练执行阶段加入 WorkoutSession、WorkoutSessionExercise、WorkoutSet 等实体。训练过程中的未完成数据需要增量保存和恢复；正式完成时生成只读历史快照。历史层不能暴露 update/delete DAO 或 Repository 方法，并使用 SQLite 触发器保护正式历史不可变。

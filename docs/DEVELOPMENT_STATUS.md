@@ -2,16 +2,16 @@
 
 > 最后更新：2026-11-22  
 > 当前目标：V1.0  
-> 当前阶段：阶段 3 — 训练计划模块
+> 当前阶段：阶段 4 — 训练执行与中断恢复
 
 ## 1. 仓库现状
-Android Gradle 单模块工程，采用 Kotlin、Jetpack Compose、Material 3、Navigation Compose、ViewModel + StateFlow、Room、Coroutines。阶段 0、阶段 1 和阶段 2 已实现；阶段 2 GitHub Actions #44926740181 全部通过。
+Android Gradle 单模块工程，采用 Kotlin、Jetpack Compose、Material 3、Navigation Compose、ViewModel + StateFlow、Room、Coroutines。阶段 0 至阶段 3 已实现。阶段 3 GitHub Actions #44929615591 全部通过。
 
 ## 2. 已完成阶段
 
 ### 阶段 0：工程基础
 - Android 单模块工程、Manifest、Gradle Wrapper、主题和三个一级导航入口。
-- Room v1 元数据表、Schema 导出配置和 GitHub Actions。
+- Room Schema 导出配置和 GitHub Actions。
 
 ### 阶段 1：日常习惯模块
 - 固定习惯新增、修改、停用；DAILY / WEEKDAYS / CUSTOM。
@@ -23,70 +23,70 @@ Android Gradle 单模块工程，采用 Kotlin、Jetpack Compose、Material 3、
 - 今日和累计固定习惯完成率；首页习惯管理。
 
 ### 阶段 2：临时任务模块
-- 新增独立 TemporaryTaskEntity、TemporaryTaskDao、TemporaryTaskRepository。
-- 任务使用 UUID，保存创建日期、标题、完成状态和时间戳。
-- 支持新增、修改、删除、完成、取消完成。
-- 编辑、删除和完成 SQL 均限定 businessDate = today；旧日期任务不可修改。
-- 首页临时任务卡片展示今日任务、今日完成率和独立累计统计。
-- 日期切换只查询新日期任务；旧任务保留在数据库供累计统计，不会延续到第二天。
-- 临时任务与 Habit / HabitRecord 使用独立表、DAO、Repository 和统计口径。
-- Room v2→v3 显式迁移新增任务表和索引，保留习惯、打卡和 metadata 数据。
-- ViewModel 合并首页状态，复用现有日期同步机制。
+- 独立 TemporaryTaskEntity、TemporaryTaskDao、TemporaryTaskRepository。
+- 新增、修改、删除、完成、取消完成；业务日期隔离。
+- 首页临时任务卡片、今日和累计独立统计。
+- Room v2→v3 显式迁移，不影响固定习惯数据。
 
-## 3. 关键业务规则
-- 设备当前时区的 LocalDate 是业务日期，数据库保存 ISO 日期字符串。
-- 固定习惯每日生成记录；临时任务不自动生成、不自动延续。
-- 临时任务创建时固定写入当天日期；只在当天列表展示。
-- 临时任务历史行保留用于累计统计；当天以外不能修改、完成或删除。
-- 固定习惯完成率只统计 HabitRecord；临时任务完成率只统计 TemporaryTask。
-- 训练历史正式保存后永久只读、禁止修改和删除（训练模块尚未实现）。
+### 阶段 3：训练计划与动作库
+- 七天每周模板，默认上肢 A、下肢 A、有氧、上肢 B、下肢 B、有氧、恢复。
+- 每次修改固定计划生成新版本，保存 effectiveFromDate；历史版本不覆盖。
+- 首次查看某日时，根据当日生效模板生成主要训练安排快照，保存 sourceVersionId。
+- 单日调整只更新对应日期的快照，不修改周模板；已经生成的日期安排不会被后续模板版本覆盖。
+- 每天默认一份主要安排，支持新增、修改、删除额外训练。
+- 训练安排状态支持 PLANNED / COMPLETED / SKIPPED；状态只作用于对应日期安排。
+- 独立 Exercise 动作库，支持按名称或类别搜索、新增、修改、删除。
+- 动作库与周模板、每日安排不使用级联外键耦合；动作库变化不会删除计划快照。
+- 计划页已接入 PlanViewModel、StateFlow、Repository 和 Room。
 
-## 4. 依赖基线
-- AGP 9.4.0；Gradle 9.6.0；Kotlin / Compose compiler 2.4.10；KSP 2.3.12。
-- Compose BOM 2026.09.00；Navigation Compose 2.10.1；Lifecycle 2.11.0；Room 2.8.5。
-- compileSdk / targetSdk 37；minSdk 26；JDK 17。
-- JUnit 4、Robolectric 4.16.1、Room Testing 2.8.5。
+## 3. 数据库版本与迁移
+当前 Room 数据库版本为 4：
+- v1：app_metadata。
+- v2：habits、habit_records。
+- v3：temporary_tasks。
+- v4：weekly_workout_plan_versions、weekly_workout_plan_days、daily_workout_plans、exercises。
+- 显式 MIGRATION_1_2、MIGRATION_2_3、MIGRATION_3_4；不使用 destructive migration。
+- 已提交 v2、v3、v4 Room Schema。
 
-## 5. 阶段 2 测试范围
-新增 TemporaryTaskRepositoryTest 覆盖创建、UUID、创建日期、完成/取消、修改、删除、空标题、跨日隔离、历史保留、独立统计和 v2→v3 迁移。同步更新阶段 1 v1→v3 迁移测试，继续验证习惯模块迁移兼容性。
+## 4. 关键业务规则
+- 设备当前时区 LocalDate 为业务日期，数据库保存 ISO yyyy-MM-dd。
+- 周模板通过 effectiveFromDate 选取版本，旧版本永久保留。
+- 单日安排是独立数据快照，调整不回写周模板。
+- 每日主要安排按需生成；额外训练单独存储。
+- 状态仅有 PLANNED、COMPLETED、SKIPPED，不自动影响下一周模板。
+- 动作库独立管理。训练历史模块尚未实现；后续正式历史必须复制动作名称和组数据快照，不能依赖动作库实时数据。
+
+## 5. 阶段 3 CI 最终验收
+构建记录：[GitHub Actions #44929615591](https://github.com/BXXDMHHH/DailyFit/actions/runs/44929615591)
+
+| 检查项 | 结果 |
+|---|---|
+| Room Schema 生成 | 通过，生成 v4 Schema |
+| Kotlin / KSP 编译 | 通过 |
+| 单元测试 | 29 项全部通过，0 失败 |
+| v1→v4 / v2→v4 / v3→v4 迁移链 | 测试通过 |
+| Debug APK | assembleDebug 成功，Artifact 已上传 |
+
+测试明细：习惯 Repository 9 项、习惯频率规则 3 项、临时任务 Repository 8 项、训练计划 Repository 9 项。
 
 ## 6. 已知限制
-- 首页临时任务卡片提供当天管理和累计统计；暂未单独制作临时任务历史页面。
-- 临时任务只允许在创建当天编辑和删除；跨日后作为历史统计数据保留。
+- 训练计划当前记录训练安排名称、备注和状态；本阶段尚未把动作库动作编排成计划内动作清单。
+- 训练执行、组数据、自动保存与进程死亡恢复尚未实现。
+- 正式训练历史尚未实现；永久只读和历史动作快照将在后续训练历史阶段落实。
 - 真机/模拟器交互仍需用户本地验收。
 
-## 7. 下一阶段：训练计划模块
-- 每周固定训练模板。
-- 单日训练安排覆盖，不影响每周模板。
-- 训练安排完成、跳过状态。
-- 显式 Room Migration、Repository 业务测试和计划页 UI。
+## 7. 下一阶段：训练执行与中断恢复
+- 从首页/计划进入当天训练。
+- 训练动作、目标组数、目标重量/次数与每组实际重量/次数分开保存。
+- 添加动作、临时动作、添加/删除训练组。
+- 训练中自动保存，进程退出后恢复未完成训练。
+- 完成后先生成正式只读历史快照（正式历史规则需与 PRD 保持一致）。
 
 ## 8. 阶段跟踪
 - [x] 阶段 0：工程基础与 CI
 - [x] 阶段 1：日常习惯模块
-- [x] 阶段 2：临时任务模块（20 项单元测试通过，Debug APK 构建通过）
-- [ ] 阶段 3：训练计划
-- [ ] 阶段 4：动作库
-- [ ] 阶段 5：训练执行与中断恢复
-- [ ] 阶段 6：训练历史永久只读
-- [ ] 阶段 7：统计与体验整合
-
-
-## 9. 阶段 2 CI 最终验收
-
-<badge color="success">全部通过</badge>
-
-构建记录：[GitHub Actions #44926740181](https://github.com/BXXDMHHH/DailyFit/actions/runs/44926740181)
-
-| 检查项 | 结果 | 详情 |
-|---|---|---|
-| Room Schema 生成 | 通过 | v3 Schema 已生成并归档 |
-| Kotlin 主源码编译 | 通过 | KSP / Kotlin 编译流程成功 |
-| 习惯 Repository / Room 测试 | 通过 | 9 项，0 失败 |
-| 习惯频率规则测试 | 通过 | 3 项，0 失败 |
-| 临时任务 Repository / Room 测试 | 通过 | 8 项，0 失败 |
-| 单元测试合计 | 通过 | 20 项，0 失败 |
-| Debug APK | 通过 | assembleDebug 成功，Artifact 已上传 |
-| 数据库迁移 | 通过 | v1→v2→v3 和 v2→v3 测试通过 |
-
-真机/模拟器 UI 与生命周期验收仍待用户本地完成。
+- [x] 阶段 2：临时任务模块
+- [x] 阶段 3：训练计划与动作库（29 项测试通过，Debug APK 构建通过）
+- [ ] 阶段 4：训练执行与中断恢复
+- [ ] 阶段 5：训练历史永久只读
+- [ ] 阶段 6：统计与体验整合
