@@ -164,13 +164,20 @@ class TrainingPlanRepositoryTest {
         old.close()
 
         val migrated = Room.databaseBuilder(context, DailyFitDatabase::class.java, name)
-            .addMigrations(DailyFitDatabase.MIGRATION_1_2, DailyFitDatabase.MIGRATION_2_3, DailyFitDatabase.MIGRATION_3_4)
+            .addMigrations(
+                DailyFitDatabase.MIGRATION_1_2,
+                DailyFitDatabase.MIGRATION_2_3,
+                DailyFitDatabase.MIGRATION_3_4,
+                DailyFitDatabase.MIGRATION_4_5,
+                DailyFitDatabase.MIGRATION_5_6
+            )
             .build()
         try {
             assertEquals("kept", migrated.appMetadataDao().getValue("existing"))
             assertTrue(migrated.weeklyWorkoutPlanDao().observeVersionForDate(today.toString()).first() == null)
             assertTrue(migrated.dailyWorkoutPlanDao().observeForDate(today.toString()).first().isEmpty())
             assertTrue(migrated.exerciseDao().observeAll().first().isEmpty())
+            assertTrue(migrated.workoutPlanExerciseDao().getForOwner("WEEKLY_DAY", "missing").isEmpty())
         } finally {
             migrated.close()
             context.deleteDatabase(name)
