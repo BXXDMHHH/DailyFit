@@ -14,7 +14,8 @@ class DailyFitApplication : Application() {
                 DailyFitDatabase.MIGRATION_1_2,
                 DailyFitDatabase.MIGRATION_2_3,
                 DailyFitDatabase.MIGRATION_3_4,
-                DailyFitDatabase.MIGRATION_4_5
+                DailyFitDatabase.MIGRATION_4_5,
+                DailyFitDatabase.MIGRATION_5_6
             )
             .build()
     }
