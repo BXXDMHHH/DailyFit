@@ -15,6 +15,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -68,6 +69,9 @@ private fun DailyFitApp() {
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { habitViewModel.refreshDate() }
     val entry by navController.currentBackStackEntryAsState()
     val currentRoute = entry?.destination?.route
+    LaunchedEffect(currentRoute) {
+        if (currentRoute == MainDestination.Home.route) planViewModel.selectDate(LocalDate.now())
+    }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -100,10 +104,16 @@ private fun DailyFitApp() {
         NavHost(navController, startDestination = MainDestination.Home.route, modifier = Modifier.padding(padding)) {
             composable(MainDestination.Home.route) {
                 val state by habitViewModel.uiState.collectAsStateWithLifecycle()
-                HomeScreen(state, habitViewModel, onStartWorkout = {
-                    planViewModel.selectDate(LocalDate.now())
-                    navController.navigate("workout")
-                })
+                val planState by planViewModel.uiState.collectAsStateWithLifecycle()
+                HomeScreen(
+                    state = state,
+                    viewModel = habitViewModel,
+                    todayWorkoutPlans = planState.dailyPlans.takeIf { planState.selectedDate == LocalDate.now() }.orEmpty(),
+                    onStartWorkout = {
+                        planViewModel.selectDate(LocalDate.now())
+                        navController.navigate("workout")
+                    }
+                )
             }
             composable(MainDestination.Plan.route) { PlanScreen(planViewModel) }
             composable("workout") {
