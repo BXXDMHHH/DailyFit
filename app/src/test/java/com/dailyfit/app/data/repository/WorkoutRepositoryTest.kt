@@ -22,7 +22,7 @@ class WorkoutRepositoryTest {
  private lateinit var db:DailyFitDatabase
  private lateinit var repo:WorkoutRepository
  private val clock=Clock.fixed(Instant.parse("2026-11-22T10:00:00Z"),ZoneOffset.UTC)
- @Before fun setUp(){db=Room.inMemoryDatabaseBuilder(RuntimeEnvironment.getApplication(),DailyFitDatabase::class.java).allowMainThreadQueries().build();repo=WorkoutRepository(db,clock)}
+ @Before fun setUp(){db=Room.inMemoryDatabaseBuilder(RuntimeEnvironment.getApplication(),DailyFitDatabase::class.java).addCallback(DailyFitDatabase.CALLBACK).allowMainThreadQueries().build();repo=WorkoutRepository(db,clock)}
  @After fun tearDown(){db.close()}
  @Test fun autosavedSessionCanBeRecoveredAndCompletedAsImmutableSnapshot()= runBlocking {
   val plan=DailyWorkoutPlanEntity("plan-1","2026-11-22","上肢训练","", "PLANNED",true,null,1,1)
