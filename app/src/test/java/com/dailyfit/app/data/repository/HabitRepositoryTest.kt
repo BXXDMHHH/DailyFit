@@ -122,6 +122,7 @@ class HabitRepositoryTest {
         assertEquals("preserved", migrated.appMetadataDao().getValue("existing"))
         migrated.close()
         context.deleteDatabase(databaseName)
+        Unit
     }
 
     @Test
