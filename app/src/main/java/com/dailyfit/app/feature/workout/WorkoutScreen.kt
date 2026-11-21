@@ -98,7 +98,7 @@ fun WorkoutScreen(
                                     value = weight,
                                     onValueChange = {
                                         weight = it
-                                        viewModel.updateSet(set, it, reps, set.isCompleted)
+                                        if (it.isBlank() || it.toDoubleOrNull() != null) viewModel.updateSet(set, it, reps, set.isCompleted)
                                     },
                                     modifier = Modifier.weight(1f),
                                     label = { Text("实际 kg") },
@@ -108,7 +108,7 @@ fun WorkoutScreen(
                                     value = reps,
                                     onValueChange = {
                                         reps = it
-                                        viewModel.updateSet(set, weight, it, set.isCompleted)
+                                        if (it.isBlank() || it.toIntOrNull() != null) viewModel.updateSet(set, weight, it, set.isCompleted)
                                     },
                                     modifier = Modifier.weight(1f),
                                     label = { Text("实际次数") },
