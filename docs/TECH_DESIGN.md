@@ -26,11 +26,13 @@ WorkoutHistoryExercise 与 WorkoutHistorySet 保存动作与组数据完整快�
 历史 DAO 只提供查询与 Insert；不提供 Update/Delete。SQLite 对三张历史表分别创建 BEFORE UPDATE / BEFORE DELETE 触发器并 RAISE(ABORT)，在数据库层防止篡改与删除。
 动作库删除或修改不会触及历史快照。
 
-### 计划动作关联限制
-当前 DailyWorkoutPlan 与 WeeklyWorkoutPlanDay 只保存训练名称和备注，不保存动作清单。阶段 4 执行界面允许从独立动作库添加动作和临时动作，但从计划自动加载动作/目标组数必须在后续增加计划动作关联数据后实现，不能从计划标题猜测动作。
+### 计划动作关联
+WorkoutPlanExerciseEntity 通过 ownerType + ownerId 关联周模板日（WEEKLY_DAY）或单日计划（DAILY_PLAN），保存动作 ID、动作信息快照、排序、目标组数、目标次数和目标重量。
+每周模板生成新版本时，按星期复制上一版本的动作配置；生成每日主要计划时，将对应星期动作复制为每日独立快照。单日动作调整不会回写周模板；后续周模板版本也不会覆盖已经生成的每日快照。
+开始训练时，Repository 将每日计划动作及目标数据一次性复制到 WorkoutSessionExercise / WorkoutSessionSet。训练执行页再允许临时添加动作、增删动作组、修改实际重量/次数。计划、进行中会话和正式历史各自保存快照，不依赖动作库实时数据。
 
 ## Room 版本
-v5。v4→v5 显式迁移新增 workout_sessions、workout_session_exercises、workout_session_sets、workout_history、workout_history_exercises、workout_history_sets，以及索引和正式历史不可变触发器。不删除或重写 v4 既有数据，不启用 destructive migration。
+v6。v4→v5 显式迁移新增训练会话、训练组、正式历史表和历史不可变触发器；v5→v6 新增 workout_plan_exercises 及索引。新安装通过 RoomDatabase.Callback 同样创建正式历史 UPDATE/DELETE 保护触发器。所有迁移均保留既有业务数据，不使用 destructive migration。
 
 ## 测试策略
 覆盖训练草稿持久化与恢复、实际数据保存、动作库修改/删除后的历史快照完整性、正式历史 SQL UPDATE/DELETE 被触发器拒绝、未完成与跳过状态。CI 结果未完成前不标记本阶段验收通过。
