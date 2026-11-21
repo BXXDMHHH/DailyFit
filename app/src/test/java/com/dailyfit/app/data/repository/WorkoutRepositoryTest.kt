@@ -84,6 +84,8 @@ class WorkoutRepositoryTest {
   val monday = LocalDate.parse("2026-11-23")
   val initialDays = planRepository.observeWeeklyPlan(monday).first()
   val mondayTemplate = initialDays.single { it.dayOfWeek == 1 }
+  // The app may already have materialized today's plan before the user configures the template.
+  planRepository.ensureDailyPrimary(monday)
 
   planRepository.saveExercise(null, "杠铃卧推", "胸部", "杠铃", "平板卧推")
   val exercise = planRepository.observeExercises("").first().single()
@@ -103,8 +105,9 @@ class WorkoutRepositoryTest {
   assertEquals(1, weeklyActions.size)
   assertEquals(60.0, weeklyActions.single().targetWeight, 0.0)
 
-  planRepository.ensureDailyPrimary(monday)
   val dailyPlan = planRepository.observeDailyPlans(monday).first().single()
+  assertTrue(planRepository.getPlanExercises("DAILY_PLAN", dailyPlan.id).isEmpty())
+  planRepository.importWeeklyActions(monday, dailyPlan.id)
   val copiedActions = planRepository.getPlanExercises("DAILY_PLAN", dailyPlan.id)
   assertEquals(60.0, copiedActions.single().targetWeight, 0.0)
 
