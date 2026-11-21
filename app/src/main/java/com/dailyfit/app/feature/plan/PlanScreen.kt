@@ -198,6 +198,13 @@ fun PlanScreen(viewModel: PlanViewModel, modifier: Modifier = Modifier) {
                     modifier = Modifier.heightIn(max = 420.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
+                    if (state.editingActionOwnerType == "DAILY_PLAN") {
+                        item {
+                            TextButton(onClick = viewModel::importWeeklyActionsIntoDailyPlan) {
+                                Text("从每周模板覆盖当天动作")
+                            }
+                        }
+                    }
                     item { Text("已配置动作（目标数据可分别调整）", style = MaterialTheme.typography.titleSmall) }
                     itemsIndexed(state.planActions) { index, action ->
                         Card(Modifier.fillMaxWidth()) {
