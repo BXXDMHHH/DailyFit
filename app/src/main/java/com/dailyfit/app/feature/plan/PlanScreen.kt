@@ -6,9 +6,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -70,6 +72,7 @@ fun PlanScreen(viewModel: PlanViewModel, modifier: Modifier = Modifier) {
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                             Text(names.getOrElse(day.dayOfWeek - 1) { "" }, modifier = Modifier.weight(1f))
                             Text(if (day.isRestDay) "休息" else day.title, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            TextButton(onClick = { viewModel.openActionEditor("WEEKLY_DAY", day.id) }) { Text("设置动作") }
                         }
                     }
                 }
@@ -95,7 +98,8 @@ fun PlanScreen(viewModel: PlanViewModel, modifier: Modifier = Modifier) {
                             plan = plan,
                             onEdit = { if (plan.isPrimary) showPrimaryEditor = true else editingExtra = plan },
                             onStatus = { viewModel.setStatus(plan.id, it) },
-                            onDelete = { viewModel.deleteExtra(plan.id) }
+                            onDelete = { viewModel.deleteExtra(plan.id) },
+                            onActions = { viewModel.openActionEditor("DAILY_PLAN", plan.id) }
                         )
                     }
                     OutlinedButton(onClick = { showExtraEditor = true }) { Text("添加额外训练") }
@@ -184,6 +188,67 @@ fun PlanScreen(viewModel: PlanViewModel, modifier: Modifier = Modifier) {
             dismissButton = { TextButton(onClick = { deletingExercise = null }) { Text("取消") } }
         )
     }
+    if (state.editingActionOwnerType != null) {
+        val ownerLabel = if (state.editingActionOwnerType == "WEEKLY_DAY") "每周模板动作" else "当天计划动作"
+        AlertDialog(
+            onDismissRequest = viewModel::closeActionEditor,
+            title = { Text(ownerLabel) },
+            text = {
+                LazyColumn(
+                    modifier = Modifier.heightIn(max = 420.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    item { Text("已配置动作（目标数据可分别调整）", style = MaterialTheme.typography.titleSmall) }
+                    itemsIndexed(state.planActions) { index, action ->
+                        Card(Modifier.fillMaxWidth()) {
+                            Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(action.name, modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleSmall)
+                                    TextButton(onClick = { viewModel.removeAction(index) }) { Text("移除") }
+                                }
+                                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    OutlinedTextField(
+                                        value = action.targetSets.toString(),
+                                        onValueChange = { viewModel.updateAction(index, targetSets = it) },
+                                        label = { Text("组数") },
+                                        modifier = Modifier.weight(1f),
+                                        singleLine = true
+                                    )
+                                    OutlinedTextField(
+                                        value = action.targetReps,
+                                        onValueChange = { viewModel.updateAction(index, targetReps = it) },
+                                        label = { Text("次数") },
+                                        modifier = Modifier.weight(1f),
+                                        singleLine = true
+                                    )
+                                    OutlinedTextField(
+                                        value = action.targetWeight,
+                                        onValueChange = { viewModel.updateAction(index, targetWeight = it) },
+                                        label = { Text("kg") },
+                                        modifier = Modifier.weight(1f),
+                                        singleLine = true
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    item { Text("从动作库添加", style = MaterialTheme.typography.titleSmall) }
+                    if (state.exercises.isEmpty()) item { Text("动作库为空，请先添加动作") }
+                    items(state.exercises, key = { it.id }) { exercise ->
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text(exercise.name)
+                                Text(exercise.category, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            TextButton(onClick = { viewModel.addAction(exercise) }) { Text("添加") }
+                        }
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = viewModel::saveActionEditor) { Text("保存动作配置") } },
+            dismissButton = { TextButton(onClick = viewModel::closeActionEditor) { Text("取消") } }
+        )
+    }
     state.message?.let { message ->
         AlertDialog(
             onDismissRequest = viewModel::consumeMessage,
@@ -199,7 +264,8 @@ private fun DailyPlanRow(
     plan: DailyWorkoutPlanEntity,
     onEdit: () -> Unit,
     onStatus: (WorkoutPlanStatus) -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onActions: () -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -208,6 +274,7 @@ private fun DailyPlanRow(
                 Text(if (plan.isPrimary) "主要训练" else "额外训练", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             TextButton(onClick = onEdit) { Text("调整") }
+            TextButton(onClick = onActions) { Text("动作") }
             if (!plan.isPrimary) TextButton(onClick = onDelete) { Text("删除") }
         }
         Text("状态：${statusLabel(plan.status)}", style = MaterialTheme.typography.bodySmall)
