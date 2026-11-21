@@ -41,3 +41,11 @@ data class WorkoutHistorySetEntity(
  val targetReps:Int, val targetWeight:Double, val actualReps:Int?, val actualWeight:Double?,
  val isCompleted:Boolean
 )
+
+
+data class WorkoutHistoryStats(
+    val totalSessions: Int,
+    val completedSessions: Int,
+    val completedSets: Int,
+    val totalVolume: Double
+)
