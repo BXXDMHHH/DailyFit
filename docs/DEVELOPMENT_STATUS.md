@@ -24,7 +24,8 @@
 - 前台 ON_RESUME 日期同步；前台持续运行时安排本地午夜刷新。
 - 历史打卡按日期倒序展示，名称使用生成时快照。
 - 今日完成率与累计固定习惯完成率。
-- 首页习惯管理 UI，历史页只读展示。
+- 首页习惯管理 UI：今日任务打卡与全部启用习惯管理分开；即使某个自定义星期习惯今天不执行，仍可编辑或停用。
+- 历史页只读展示。
 - Room v1→v2 显式 Migration，保留原 app_metadata 数据。
 - Room v2 Schema 已纳入版本控制：`app/schemas/com.dailyfit.app.data.local.DailyFitDatabase/2.json`。
 
@@ -53,20 +54,20 @@
 
 ## 5. 阶段 1 验收结果
 
-<badge>GitHub Actions run 44921749410</badge>
+<badge color="success">GitHub Actions 全部通过</badge>
+
+构建记录：[GitHub Actions #44922171867](https://github.com/BXXDMHHH/DailyFit/actions/runs/44922171867)
 
 | 检查项 | 结果 | 详情 |
 |---|---|---|
 | Room Schema 生成 | 通过 | v2 JSON 已导出并纳入版本控制 |
 | Kotlin 主源码编译 | 通过 | `compileDebugKotlin` |
-| Repository / Room 测试 | 通过 | 8 项，0 失败 |
+| Repository / Room 测试 | 通过 | 9 项，0 失败 |
 | 频率规则测试 | 通过 | 3 项，0 失败 |
-| 单元测试合计 | 通过 | 11 项，0 失败 |
+| 单元测试合计 | 通过 | 12 项，0 失败 |
 | Debug APK | 通过 | `assembleDebug` 成功，已上传 CI Artifact |
 | 数据库迁移 | 通过 | v1→v2，原 metadata 数据保留 |
 | 真机/模拟器验收 | 待用户本地验收 | 当前未连接用户设备 |
-
-构建与测试结果：[GitHub Actions #阶段 1](https://github.com/BXXDMHHH/DailyFit/actions/runs/44921749410)
 
 ## 6. 已知限制
 1. Habit 目前只支持停用，不提供物理删除或重新启用。
@@ -83,7 +84,7 @@
 
 ## 8. 阶段跟踪
 - [x] 阶段 0：工程基础与 CI
-- [x] 阶段 1：日常习惯模块（CI 全部通过）
+- [x] 阶段 1：日常习惯模块（12 项测试通过，Debug APK 构建通过）
 - [ ] 阶段 2：临时任务
 - [ ] 阶段 3：训练计划与动作库
 - [ ] 阶段 4：训练执行与中断恢复
