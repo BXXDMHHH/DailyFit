@@ -63,7 +63,16 @@ fun WorkoutScreen(
                     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(plan.title, style = MaterialTheme.typography.titleMedium)
                         Text(plan.notes, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Button(onClick = { viewModel.start(plan) }) { Text("开始训练") }
+                        Button(
+                            onClick = { viewModel.start(plan) },
+                            enabled = plan.status == "PLANNED"
+                        ) {
+                            Text(when (plan.status) {
+                                "COMPLETED" -> "已完成"
+                                "SKIPPED" -> "已跳过"
+                                else -> "开始训练"
+                            })
+                        }
                     }
                 }
             }
