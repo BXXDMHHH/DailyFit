@@ -19,6 +19,8 @@ import kotlinx.coroutines.flow.Flow
  @Insert(onConflict=OnConflictStrategy.ABORT) suspend fun insertSets(rows:List<WorkoutSessionSetEntity>)
  @Query("UPDATE workout_session_sets SET actualWeight=:weight,actualReps=:reps,isCompleted=:done,updatedAt=:at WHERE id=:id AND sessionExerciseId IN (SELECT id FROM workout_session_exercises WHERE sessionId=:sessionId) AND EXISTS(SELECT 1 FROM workout_sessions WHERE id=:sessionId AND status='IN_PROGRESS')") suspend fun updateSet(id:String,sessionId:String,weight:Double?,reps:Int?,done:Boolean,at:Long):Int
  @Query("DELETE FROM workout_session_sets WHERE id=:id AND sessionExerciseId IN (SELECT id FROM workout_session_exercises WHERE sessionId=:sessionId) AND EXISTS(SELECT 1 FROM workout_sessions WHERE id=:sessionId AND status='IN_PROGRESS')") suspend fun deleteSet(id:String,sessionId:String):Int
+ @Query("SELECT (SELECT COUNT(*) FROM workout_history) AS totalSessions, (SELECT COUNT(*) FROM workout_history WHERE status='COMPLETED') AS completedSessions, (SELECT COUNT(*) FROM workout_history_sets WHERE isCompleted=1) AS completedSets, (SELECT COALESCE(SUM(actualWeight * actualReps), 0) FROM workout_history_sets WHERE isCompleted=1 AND actualWeight IS NOT NULL AND actualReps IS NOT NULL) AS totalVolume")
+ fun observeStats():Flow<WorkoutHistoryStats>
  @Query("SELECT * FROM workout_history ORDER BY businessDate DESC,completedAt DESC") fun observeHistory():Flow<List<WorkoutHistoryEntity>>
  @Query("SELECT * FROM workout_history WHERE id=:id") fun observeHistoryById(id:String):Flow<WorkoutHistoryEntity?>
  @Query("SELECT * FROM workout_history_exercises WHERE historyId=:id ORDER BY sortOrder") fun observeHistoryExercises(id:String):Flow<List<WorkoutHistoryExerciseEntity>>
