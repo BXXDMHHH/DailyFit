@@ -24,20 +24,26 @@ import com.dailyfit.app.data.local.DailyFitDatabase
 import com.dailyfit.app.data.local.WorkoutHistoryEntity
 import com.dailyfit.app.data.local.WorkoutHistoryExerciseEntity
 import com.dailyfit.app.data.local.WorkoutHistorySetEntity
+import com.dailyfit.app.data.local.WorkoutHistoryStats
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.launch
 
 @Composable
 fun WorkoutHistorySection(database: DailyFitDatabase, modifier: Modifier = Modifier) {
     val dao = database.workoutSessionDao()
     var rows by remember { mutableStateOf(emptyList<WorkoutHistoryEntity>()) }
+    var stats by remember { mutableStateOf(WorkoutHistoryStats(0, 0, 0, 0.0)) }
     var selected by remember { mutableStateOf<WorkoutHistoryEntity?>(null) }
     var details by remember {
         mutableStateOf(emptyList<Pair<WorkoutHistoryExerciseEntity, List<WorkoutHistorySetEntity>>>())
     }
     val scope = rememberCoroutineScope()
 
-    LaunchedEffect(Unit) { dao.observeHistory().collect { rows = it } }
+    LaunchedEffect(Unit) {
+        launch { dao.observeHistory().collect { rows = it } }
+        launch { dao.observeStats().collect { stats = it } }
+    }
 
     LazyColumn(
         modifier = modifier.fillMaxWidth().padding(horizontal = 18.dp),
@@ -45,6 +51,15 @@ fun WorkoutHistorySection(database: DailyFitDatabase, modifier: Modifier = Modif
     ) {
         item {
             Text("训练历史", style = MaterialTheme.typography.titleLarge)
+        }
+        item {
+            Card(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("训练次数：${stats.totalSessions} 次（已完成 ${stats.completedSessions} 次）")
+                    Text("完成训练组数：${stats.completedSets} 组")
+                    Text("累计训练量：${"%.1f".format(stats.totalVolume)} kg·次")
+                }
+            }
         }
         if (rows.isEmpty()) {
             item { Text("还没有正式训练记录", color = MaterialTheme.colorScheme.onSurfaceVariant) }
