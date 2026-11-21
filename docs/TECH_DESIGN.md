@@ -16,7 +16,7 @@ Kotlin、Jetpack Compose、Material 3、MVVM、ViewModel + StateFlow、Room、Co
 WorkoutSession 保存 planId、businessDate、title、status、startedAt、updatedAt。status=IN_PROGRESS 表示可恢复草稿。
 WorkoutSessionExercise 保存 exerciseId（可空）、exerciseNameSnapshot、categorySnapshot、equipmentSnapshot、notesSnapshot、排序、目标组数/次数/重量及临时动作标记。
 WorkoutSessionSet 保存每组目标次数/重量、实际次数/重量、完成状态、更新时间。
-每次修改直接写 Room；启动时查询最新 IN_PROGRESS session 并恢复其动作和组数据。进行中数据允许编辑、增加、删除。
+每次有效修改直接写 Room；启动时查询最新 IN_PROGRESS session 并恢复其动作和组数据。进行中数据允许编辑、增加、删除；用户可确认放弃草稿，放弃只删除未完成会话，不生成正式历史。
 
 ### 正式历史
 WorkoutHistory 保存训练日期、标题快照、状态、起止时间和时长。
@@ -35,4 +35,4 @@ WorkoutPlanExerciseEntity 通过 ownerType + ownerId 关联周模板日（WEEKLY
 v6。v4→v5 显式迁移新增训练会话、训练组、正式历史表和历史不可变触发器；v5→v6 新增 workout_plan_exercises 及索引。新安装通过 RoomDatabase.Callback 同样创建正式历史 UPDATE/DELETE 保护触发器。所有迁移均保留既有业务数据，不使用 destructive migration。
 
 ## 测试策略
-覆盖训练草稿持久化与恢复、实际数据保存、动作库修改/删除后的历史快照完整性、正式历史 SQL UPDATE/DELETE 被触发器拒绝、未完成与跳过状态。CI 结果未完成前不标记本阶段验收通过。
+覆盖训练草稿持久化与恢复、计划动作跨周模板/每日快照/会话/历史的传递、单日覆盖独立性、实际数据保存、动作库修改/删除后的历史快照完整性、正式历史三张表 SQL UPDATE/DELETE 被触发器拒绝、未完成/跳过/放弃状态、训练次数/完成组数/训练量统计。习惯历史展示连续有打卡天数。CI 结果未完成前不标记本阶段验收通过。
