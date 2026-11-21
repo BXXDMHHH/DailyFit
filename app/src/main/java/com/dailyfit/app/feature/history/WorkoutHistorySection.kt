@@ -27,7 +27,6 @@ import com.dailyfit.app.data.local.WorkoutHistorySetEntity
 import com.dailyfit.app.data.local.WorkoutHistoryStats
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.launch
 
 @Composable
 fun WorkoutHistorySection(database: DailyFitDatabase, modifier: Modifier = Modifier) {
