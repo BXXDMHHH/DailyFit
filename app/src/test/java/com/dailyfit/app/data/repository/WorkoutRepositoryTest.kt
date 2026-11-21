@@ -50,11 +50,26 @@ class WorkoutRepositoryTest {
  @Test fun finishedHistoryCannotBeUpdatedOrDeletedAtSqliteLevel()= runBlocking {
   val plan=DailyWorkoutPlanEntity("plan-2","2026-11-22","跑步","", "PLANNED",true,null,1,1)
   val sid=repo.start(plan, emptyList())
+  repo.addExercise(sid, ExerciseEntity("history-ex", "跑步", "有氧", "跑步机", "", 1, 1))
+  val sessionExercise=db.workoutSessionDao().getExercises(sid).single()
+  val sessionSet=db.workoutSessionDao().getSets(sessionExercise.id).single()
+  repo.updateSet(sid, sessionSet.id, 8.0, 5, true)
   val hid=repo.finish(sid)
-  val blockedUpdate=runCatching{db.openHelper.writableDatabase.execSQL("UPDATE workout_history SET titleSnapshot='tampered' WHERE id=?",arrayOf(hid))}
-  val blockedDelete=runCatching{db.openHelper.writableDatabase.execSQL("DELETE FROM workout_history WHERE id=?",arrayOf(hid))}
-  assertTrue(blockedUpdate.isFailure);assertTrue(blockedDelete.isFailure)
+  val historyExercise=repo.observeHistoryExercises(hid).first().single()
+  val historySet=repo.observeHistorySets(historyExercise.id).first().single()
+
+  val blocked = listOf(
+   runCatching{db.openHelper.writableDatabase.execSQL("UPDATE workout_history SET titleSnapshot='tampered' WHERE id=?",arrayOf(hid))},
+   runCatching{db.openHelper.writableDatabase.execSQL("DELETE FROM workout_history WHERE id=?",arrayOf(hid))},
+   runCatching{db.openHelper.writableDatabase.execSQL("UPDATE workout_history_exercises SET exerciseNameSnapshot='tampered' WHERE id=?",arrayOf(historyExercise.id))},
+   runCatching{db.openHelper.writableDatabase.execSQL("DELETE FROM workout_history_exercises WHERE id=?",arrayOf(historyExercise.id))},
+   runCatching{db.openHelper.writableDatabase.execSQL("UPDATE workout_history_sets SET actualReps=999 WHERE id=?",arrayOf(historySet.id))},
+   runCatching{db.openHelper.writableDatabase.execSQL("DELETE FROM workout_history_sets WHERE id=?",arrayOf(historySet.id))}
+  )
+  assertTrue(blocked.all { it.isFailure })
   assertEquals("跑步",repo.observeHistory().first().single().titleSnapshot)
+  assertEquals("跑步",repo.observeHistoryExercises(hid).first().single().exerciseNameSnapshot)
+  assertEquals(5,repo.observeHistorySets(historyExercise.id).first().single().actualReps)
  }
  @Test fun incompleteAndSkippedArePersistedAsReadOnlyHistoryStatuses()= runBlocking {
   val p1=DailyWorkoutPlanEntity("p3","2026-11-22","力量","", "PLANNED",true,null,1,1)
@@ -139,6 +154,16 @@ class WorkoutRepositoryTest {
   assertEquals(1, stats.completedSessions)
   assertEquals(2, stats.completedSets)
   assertEquals(940.0, stats.totalVolume, 0.0)
+ }
+
+ @Test fun discardingUnfinishedWorkoutDeletesDraftWithoutCreatingHistory() = runBlocking {
+  val plan = DailyWorkoutPlanEntity("discard-plan", "2026-11-22", "力量", "", "PLANNED", true, null, 1, 1)
+  val sessionId = repo.start(plan)
+  repo.addExercise(sessionId, ExerciseEntity("discard-ex", "深蹲", "腿部", "杠铃", "", 1, 1))
+  repo.discard(sessionId)
+  assertNull(repo.recoverableSession())
+  assertTrue(repo.observeHistory().first().isEmpty())
+  assertNull(db.workoutSessionDao().get(sessionId))
  }
 
 }
