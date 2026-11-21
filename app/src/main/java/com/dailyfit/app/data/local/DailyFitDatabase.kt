@@ -27,8 +27,17 @@ interface AppMetadataDao {
 }
 
 @Database(
-    entities = [AppMetadataEntity::class, HabitEntity::class, HabitRecordEntity::class, TemporaryTaskEntity::class],
-    version = 3,
+    entities = [
+        AppMetadataEntity::class,
+        HabitEntity::class,
+        HabitRecordEntity::class,
+        TemporaryTaskEntity::class,
+        WeeklyWorkoutPlanVersionEntity::class,
+        WeeklyWorkoutPlanDayEntity::class,
+        DailyWorkoutPlanEntity::class,
+        ExerciseEntity::class
+    ],
+    version = 4,
     exportSchema = true
 )
 abstract class DailyFitDatabase : RoomDatabase() {
@@ -36,6 +45,9 @@ abstract class DailyFitDatabase : RoomDatabase() {
     abstract fun habitDao(): HabitDao
     abstract fun habitRecordDao(): HabitRecordDao
     abstract fun temporaryTaskDao(): TemporaryTaskDao
+    abstract fun weeklyWorkoutPlanDao(): WeeklyWorkoutPlanDao
+    abstract fun dailyWorkoutPlanDao(): DailyWorkoutPlanDao
+    abstract fun exerciseDao(): ExerciseDao
 
     companion object {
         const val DATABASE_NAME = "dailyfit.db"
@@ -85,6 +97,59 @@ abstract class DailyFitDatabase : RoomDatabase() {
                 """.trimIndent())
                 db.execSQL("CREATE INDEX IF NOT EXISTS index_temporary_tasks_businessDate ON temporary_tasks(businessDate)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS index_temporary_tasks_businessDate_isCompleted ON temporary_tasks(businessDate, isCompleted)")
+            }
+        }
+
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS weekly_workout_plan_versions (
+                        id TEXT NOT NULL PRIMARY KEY,
+                        effectiveFromDate TEXT NOT NULL,
+                        createdAt INTEGER NOT NULL
+                    )
+                """.trimIndent())
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_weekly_workout_plan_versions_effectiveFromDate_createdAt ON weekly_workout_plan_versions(effectiveFromDate, createdAt)")
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS weekly_workout_plan_days (
+                        id TEXT NOT NULL PRIMARY KEY,
+                        versionId TEXT NOT NULL,
+                        dayOfWeek INTEGER NOT NULL,
+                        title TEXT NOT NULL,
+                        notes TEXT NOT NULL,
+                        isRestDay INTEGER NOT NULL,
+                        FOREIGN KEY(versionId) REFERENCES weekly_workout_plan_versions(id) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                """.trimIndent())
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_weekly_workout_plan_days_versionId_dayOfWeek ON weekly_workout_plan_days(versionId, dayOfWeek)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_weekly_workout_plan_days_versionId ON weekly_workout_plan_days(versionId)")
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS daily_workout_plans (
+                        id TEXT NOT NULL PRIMARY KEY,
+                        businessDate TEXT NOT NULL,
+                        title TEXT NOT NULL,
+                        notes TEXT NOT NULL,
+                        status TEXT NOT NULL,
+                        isPrimary INTEGER NOT NULL,
+                        sourceVersionId TEXT,
+                        createdAt INTEGER NOT NULL,
+                        updatedAt INTEGER NOT NULL
+                    )
+                """.trimIndent())
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_daily_workout_plans_businessDate ON daily_workout_plans(businessDate)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_daily_workout_plans_businessDate_isPrimary ON daily_workout_plans(businessDate, isPrimary)")
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS exercises (
+                        id TEXT NOT NULL PRIMARY KEY,
+                        name TEXT NOT NULL,
+                        category TEXT NOT NULL,
+                        equipment TEXT NOT NULL,
+                        notes TEXT NOT NULL,
+                        createdAt INTEGER NOT NULL,
+                        updatedAt INTEGER NOT NULL
+                    )
+                """.trimIndent())
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_exercises_name ON exercises(name)")
             }
         }
     }

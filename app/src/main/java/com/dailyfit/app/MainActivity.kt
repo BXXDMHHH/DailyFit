@@ -31,6 +31,8 @@ import com.dailyfit.app.feature.habits.HabitViewModelFactory
 import com.dailyfit.app.feature.home.HomeScreen
 import com.dailyfit.app.feature.history.HistoryScreen
 import com.dailyfit.app.feature.plan.PlanScreen
+import com.dailyfit.app.feature.plan.PlanViewModel
+import com.dailyfit.app.feature.plan.PlanViewModelFactory
 import com.dailyfit.app.ui.theme.DailyFitTheme
 
 class MainActivity : ComponentActivity() {
@@ -52,6 +54,10 @@ private fun DailyFitApp() {
     val habitViewModel: HabitViewModel = viewModel(
         viewModelStoreOwner = activity,
         factory = HabitViewModelFactory(app.habitRepository, app.temporaryTaskRepository)
+    )
+    val planViewModel: PlanViewModel = viewModel(
+        viewModelStoreOwner = activity,
+        factory = PlanViewModelFactory(app.trainingPlanRepository)
     )
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { habitViewModel.refreshDate() }
     val entry by navController.currentBackStackEntryAsState()
@@ -88,7 +94,7 @@ private fun DailyFitApp() {
                 val state by habitViewModel.uiState.collectAsStateWithLifecycle()
                 HomeScreen(state, habitViewModel)
             }
-            composable(MainDestination.Plan.route) { PlanScreen() }
+            composable(MainDestination.Plan.route) { PlanScreen(planViewModel) }
             composable(MainDestination.History.route) {
                 val state by habitViewModel.uiState.collectAsStateWithLifecycle()
                 HistoryScreen(state)
