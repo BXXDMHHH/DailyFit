@@ -31,13 +31,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import com.dailyfit.app.data.local.DailyWorkoutPlanEntity
-import com.dailyfit.app.data.local.HabitEntity
 import com.dailyfit.app.data.local.TemporaryTaskEntity
 import com.dailyfit.app.data.repository.HabitItem
 import com.dailyfit.app.feature.habits.HabitUiState
 import com.dailyfit.app.feature.habits.HabitViewModel
-import com.dailyfit.app.domain.model.HabitFrequency
-import java.time.DayOfWeek
 
 @Composable
 fun HomeScreen(
@@ -45,13 +42,11 @@ fun HomeScreen(
     viewModel: HabitViewModel,
     onStartWorkout: () -> Unit = {},
     todayWorkoutPlans: List<DailyWorkoutPlanEntity> = emptyList(),
+    isWorkoutPlansLoading: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val dashboard = state.dashboard
     val taskDashboard = state.temporaryTaskDashboard
-    var editingHabit by remember { mutableStateOf<HabitEntity?>(null) }
-    var showCreateHabitDialog by remember { mutableStateOf(false) }
-    var deactivatingHabit by remember { mutableStateOf<HabitEntity?>(null) }
     var showCreateTaskDialog by remember { mutableStateOf(false) }
     var editingTask by remember { mutableStateOf<TemporaryTaskEntity?>(null) }
     var deletingTask by remember { mutableStateOf<TemporaryTaskEntity?>(null) }
@@ -72,7 +67,6 @@ fun HomeScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("今日习惯", style = MaterialTheme.typography.titleLarge)
                         Spacer(Modifier.weight(1f))
-                        Button(onClick = { showCreateHabitDialog = true }) { Text("新增习惯") }
                     }
                     if (state.isLoading || dashboard == null) {
                         CircularProgressIndicator()
@@ -89,32 +83,6 @@ fun HomeScreen(
                         dashboard.todayHabits.forEach { item ->
                             HabitRow(item = item, onChecked = { viewModel.setCompleted(item.record.id, it) })
                         }
-                    }
-                }
-            }
-        }
-        if (dashboard != null && dashboard.activeHabits.isNotEmpty()) {
-            item {
-                Card(Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text("固定习惯管理", style = MaterialTheme.typography.titleMedium)
-                        dashboard.activeHabits.forEach { habit ->
-                            HabitManagementRow(
-                                habit = habit,
-                                onEdit = { editingHabit = habit },
-                                onDeactivate = { deactivatingHabit = habit }
-                            )
-                        }
-                    }
-                }
-            }
-        }
-        if (dashboard != null && dashboard.inactiveHabits.isNotEmpty()) {
-            item {
-                Card(Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text("已停用习惯", style = MaterialTheme.typography.titleMedium)
-                        dashboard.inactiveHabits.forEach { Text(it.name, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                     }
                 }
             }
@@ -164,8 +132,10 @@ fun HomeScreen(
             Card(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text("今日训练", style = MaterialTheme.typography.titleMedium)
-                    if (todayWorkoutPlans.isEmpty()) {
-                        Text("正在加载今日训练安排，或今天尚无安排", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (isWorkoutPlansLoading) {
+                        CircularProgressIndicator()
+                    } else if (todayWorkoutPlans.isEmpty()) {
+                        Text("今天还没有训练安排，可以在计划页进行设置。", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     } else {
                         todayWorkoutPlans.forEach { plan ->
                             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -189,46 +159,6 @@ fun HomeScreen(
         item { Spacer(Modifier.height(12.dp)) }
     }
 
-    if (showCreateHabitDialog) {
-        HabitEditorDialog(
-            title = "新增习惯",
-            initialName = "",
-            initialFrequency = HabitFrequency.DAILY,
-            initialDays = setOf(DayOfWeek.MONDAY, DayOfWeek.WEDNESDAY, DayOfWeek.FRIDAY),
-            onDismiss = { showCreateHabitDialog = false },
-            onSave = { name, frequency, days ->
-                viewModel.addHabit(name, frequency, days)
-                showCreateHabitDialog = false
-            }
-        )
-    }
-    editingHabit?.let { habit ->
-        HabitEditorDialog(
-            title = "编辑习惯",
-            initialName = habit.name,
-            initialFrequency = runCatching { HabitFrequency.valueOf(habit.frequency) }.getOrDefault(HabitFrequency.DAILY),
-            initialDays = habit.customDays.split(",").mapNotNull { it.toIntOrNull()?.let(DayOfWeek::of) }.toSet(),
-            onDismiss = { editingHabit = null },
-            onSave = { name, frequency, days ->
-                viewModel.editHabit(habit.id, name, frequency, days)
-                editingHabit = null
-            }
-        )
-    }
-    deactivatingHabit?.let { habit ->
-        AlertDialog(
-            onDismissRequest = { deactivatingHabit = null },
-            title = { Text("停用习惯？") },
-            text = { Text("停用后不会再生成新的每日任务，已有打卡历史会永久保留。") },
-            confirmButton = {
-                TextButton(onClick = {
-                    viewModel.deactivateHabit(habit.id)
-                    deactivatingHabit = null
-                }) { Text("确认停用") }
-            },
-            dismissButton = { TextButton(onClick = { deactivatingHabit = null }) { Text("取消") } }
-        )
-    }
     if (showCreateTaskDialog) {
         TemporaryTaskEditorDialog(
             title = "新增临时任务",
@@ -346,81 +276,6 @@ private fun HabitRow(
         }
         HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
     }
-}
-
-@Composable
-private fun HabitManagementRow(
-    habit: HabitEntity,
-    onEdit: () -> Unit,
-    onDeactivate: () -> Unit
-) {
-    Column {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-            Column(Modifier.weight(1f)) {
-                Text(habit.name, style = MaterialTheme.typography.bodyLarge)
-                Text(frequencyLabel(habit), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            TextButton(onClick = onEdit) { Text("编辑") }
-            TextButton(onClick = onDeactivate) { Text("停用") }
-        }
-        HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
-    }
-}
-
-@Composable
-private fun HabitEditorDialog(
-    title: String,
-    initialName: String,
-    initialFrequency: HabitFrequency,
-    initialDays: Set<DayOfWeek>,
-    onDismiss: () -> Unit,
-    onSave: (String, HabitFrequency, Set<DayOfWeek>) -> Unit
-) {
-    var name by remember(title, initialName) { mutableStateOf(initialName) }
-    var frequency by remember(title, initialFrequency) { mutableStateOf(initialFrequency) }
-    var days by remember(title, initialDays) { mutableStateOf(initialDays) }
-    var validationError by remember { mutableStateOf<String?>(null) }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(title) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("习惯名称") }, singleLine = true)
-                Text("执行频率", style = MaterialTheme.typography.titleSmall)
-                listOf(
-                    HabitFrequency.DAILY to "每天",
-                    HabitFrequency.WEEKDAYS to "工作日（周一至周五）",
-                    HabitFrequency.CUSTOM to "自定义星期"
-                ).forEach { (value, label) ->
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        RadioButton(selected = frequency == value, onClick = { frequency = value })
-                        Text(label)
-                    }
-                }
-                if (frequency == HabitFrequency.CUSTOM) {
-                    DayOfWeek.values().forEach { day ->
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Checkbox(checked = day in days, onCheckedChange = { checked ->
-                                days = if (checked) days + day else days - day
-                            })
-                            Text(dayLabel(day))
-                        }
-                    }
-                }
-                validationError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = {
-                when {
-                    name.isBlank() -> validationError = "请输入习惯名称"
-                    frequency == HabitFrequency.CUSTOM && days.isEmpty() -> validationError = "至少选择一个星期"
-                    else -> onSave(name.trim(), frequency, days)
-                }
-            }) { Text("保存") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } }
-    )
 }
 
 private fun frequencyLabel(habit: HabitEntity): String = when (habit.frequency) {

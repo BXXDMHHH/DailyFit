@@ -33,12 +33,17 @@ import com.dailyfit.app.data.local.DailyWorkoutPlanEntity
 import com.dailyfit.app.data.local.ExerciseEntity
 import com.dailyfit.app.data.repository.WeeklyPlanInput
 import com.dailyfit.app.data.repository.WorkoutPlanStatus
+import com.dailyfit.app.feature.habits.HabitViewModel
+import com.dailyfit.app.feature.habits.HabitUiState
+import com.dailyfit.app.feature.plan.HabitManagementSection
+import androidx.compose.material3.CircularProgressIndicator
 import java.time.LocalDate
 import java.time.format.DateTimeParseException
 
 @Composable
-fun PlanScreen(viewModel: PlanViewModel, modifier: Modifier = Modifier) {
+fun PlanScreen(viewModel: PlanViewModel, habitViewModel: HabitViewModel, modifier: Modifier = Modifier) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val habitState by habitViewModel.uiState.collectAsStateWithLifecycle()
     var showWeeklyEditor by remember { mutableStateOf(false) }
     var showPrimaryEditor by remember { mutableStateOf(false) }
     var showExtraEditor by remember { mutableStateOf(false) }
@@ -56,6 +61,14 @@ fun PlanScreen(viewModel: PlanViewModel, modifier: Modifier = Modifier) {
             Column(Modifier.padding(top = 20.dp)) {
                 Text("训练计划", style = MaterialTheme.typography.headlineMedium)
                 Text("每周模板、单日安排与动作库彼此独立", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        item { HabitManagementSection(state = habitState, viewModel = habitViewModel) }
+        if (state.isLoading) {
+            item {
+                androidx.compose.foundation.layout.Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
             }
         }
         item {
@@ -121,7 +134,7 @@ fun PlanScreen(viewModel: PlanViewModel, modifier: Modifier = Modifier) {
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true
                     )
-                    if (state.exercises.isEmpty()) Text("没有找到动作", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (state.exercises.isEmpty()) Text(if (state.exerciseQuery.isBlank()) "动作库还没有动作，请添加常用训练动作。" else "没有找到匹配的动作。", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     state.exercises.forEach { exercise ->
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
