@@ -6,6 +6,12 @@ import kotlinx.coroutines.flow.Flow
  @Query("SELECT * FROM workout_sessions WHERE status='IN_PROGRESS' ORDER BY updatedAt DESC LIMIT 1") suspend fun getActive():WorkoutSessionEntity?
  @Query("SELECT * FROM workout_sessions WHERE id=:id") suspend fun get(id:String):WorkoutSessionEntity?
  @Insert(onConflict=OnConflictStrategy.ABORT) suspend fun insertSession(row:WorkoutSessionEntity)
+ @Query("DELETE FROM workout_session_sets WHERE sessionExerciseId IN (SELECT id FROM workout_session_exercises WHERE sessionId=:sessionId)")
+ suspend fun deleteSetsForSession(sessionId:String):Int
+ @Query("DELETE FROM workout_session_exercises WHERE sessionId=:sessionId")
+ suspend fun deleteExercisesForSession(sessionId:String):Int
+ @Query("DELETE FROM workout_sessions WHERE id=:sessionId AND status='IN_PROGRESS'")
+ suspend fun deleteActiveSession(sessionId:String):Int
  @Query("UPDATE workout_sessions SET updatedAt=:at WHERE id=:id AND status='IN_PROGRESS'") suspend fun touch(id:String,at:Long):Int
  @Query("UPDATE workout_sessions SET title=:title,updatedAt=:at WHERE id=:id AND status='IN_PROGRESS'") suspend fun rename(id:String,title:String,at:Long):Int
  @Query("UPDATE workout_sessions SET status=:status,updatedAt=:at WHERE id=:id AND status='IN_PROGRESS'") suspend fun setStatus(id:String,status:String,at:Long):Int
