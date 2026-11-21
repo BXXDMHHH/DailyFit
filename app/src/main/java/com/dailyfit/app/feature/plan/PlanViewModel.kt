@@ -146,7 +146,7 @@ class PlanViewModel(
         _uiState.value = _uiState.value.copy(
             planActions = current + PlanActionDraft(
                 exercise.id, exercise.name, exercise.category, exercise.equipment,
-                exercise.notes, 3, "8-12", "0"
+                exercise.notes, "3", "8-12", "0"
             )
         )
     }
