@@ -118,7 +118,7 @@ fun HistoryScreen(
                         CircularProgressIndicator()
                     } else {
                         val tasks = state.temporaryTaskDashboard
-                        Text("累计完成：${tasks?.allCompleted ?: 0}/${tasks?.allTotal ?: 0}")
+                        Text("累计完成：${tasks?.allCompleted ?: 0}/${tasks?.allTotal ?: 0} · 完成率 ${tasks?.overallCompletionPercent ?: 0}%")
                         Text("今日完成：${tasks?.todayCompleted ?: 0}/${tasks?.todayTotal ?: 0} · 完成率 ${tasks?.todayCompletionPercent ?: 0}%")
                     }
                 }
@@ -131,8 +131,12 @@ fun HistoryScreen(
                     if (!historyLoaded || !statsLoaded) {
                         CircularProgressIndicator()
                     } else {
+                        val incompleteSessions = rows.count { it.status == "INCOMPLETE" }
+                        val skippedSessions = rows.count { it.status == "SKIPPED" }
+                        val completionRate = if (stats.totalSessions == 0) 0 else stats.completedSessions * 100 / stats.totalSessions
                         Text("训练次数：${stats.totalSessions} 次")
-                        Text("已完成训练：${stats.completedSessions} 次")
+                        Text("完成：${stats.completedSessions} 次 · 未完成：${incompleteSessions} 次 · 跳过：${skippedSessions} 次")
+                        Text("训练完成率：${completionRate}%")
                         Text("完成训练组数：${stats.completedSets} 组")
                         Text("累计训练量：${"%.1f".format(stats.totalVolume)} kg·次")
                     }
