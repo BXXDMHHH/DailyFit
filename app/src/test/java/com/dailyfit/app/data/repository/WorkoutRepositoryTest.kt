@@ -169,4 +169,15 @@ class WorkoutRepositoryTest {
   assertNull(db.workoutSessionDao().get(sessionId))
  }
 
+ @Test fun commonExerciseLibrarySeedsOnceAndDoesNotRestoreUserDeletedItems() = runBlocking {
+  val planRepository = TrainingPlanRepository(db, clock)
+  planRepository.ensureInitialTemplate()
+  val firstSeed = planRepository.observeExercises("").first()
+  assertTrue(firstSeed.map { it.name }.containsAll(listOf("卧推", "深蹲", "硬拉", "杠铃划船", "高位下拉", "肩推", "侧平举")))
+  val deletedId = firstSeed.first().id
+  planRepository.deleteExercise(deletedId)
+  planRepository.ensureInitialTemplate()
+  assertFalse(planRepository.observeExercises("").first().any { it.id == deletedId })
+ }
+
 }
