@@ -183,7 +183,7 @@ class PlanViewModel(
                             it.targetReps, it.targetWeight.toString()
                         )
                     },
-                    message = "已从每周模板复制动作；这是当天独立配置"
+                    message = null
                 )
             }.onFailure { showError(it) }
         }
