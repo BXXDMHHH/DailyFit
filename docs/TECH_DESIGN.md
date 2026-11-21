@@ -167,8 +167,6 @@ Repository 接口放在 domain 层，Room 实现放在 data 层。ViewModel 通�
 - `exerciseNameSnapshot` TEXT NOT NULL
 - `position` INTEGER NOT NULL
 - `targetSets` INTEGER NOT NULL
-- `targetReps` INTEGER NULL
-- `targetWeight` REAL NULL
 
 索引：(`sessionId`, `position`)。动作名在添加到训练时即保存快照；动作库改名或删除不影响本表。
 
@@ -183,7 +181,7 @@ Repository 接口放在 domain 层，Room 实现放在 data 层。ViewModel 通�
 - `isCompleted` INTEGER NOT NULL DEFAULT 0
 - `completedAt` INTEGER NULL
 
-约束：UNIQUE(`workoutExerciseId`, `setNumber`)；索引 `workoutExerciseId`。目标值与实际值分列存储，禁止以目标值填充实际值。
+约束：UNIQUE(`workoutExerciseId`, `setNumber`)；索引 `workoutExerciseId`。每组目标次数/重量与实际次数/重量分列存储，禁止以目标值填充实际值。
 
 ### 4.2 关系概览
 
