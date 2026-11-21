@@ -30,8 +30,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.compose.LifecycleEventEffect
 import com.dailyfit.app.data.local.HabitEntity
 import com.dailyfit.app.data.repository.HabitItem
 import com.dailyfit.app.feature.habits.HabitUiState
@@ -45,7 +43,6 @@ fun HomeScreen(
     viewModel: HabitViewModel,
     modifier: Modifier = Modifier
 ) {
-    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.refreshDate() }
     val dashboard = state.dashboard
     var editingHabit by remember { mutableStateOf<HabitEntity?>(null) }
     var showCreateDialog by remember { mutableStateOf(false) }
@@ -183,7 +180,7 @@ private fun HabitRow(
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
             Checkbox(checked = item.record.isCompleted, onCheckedChange = onChecked)
             Column(Modifier.weight(1f)) {
-                Text(item.record.habitNameSnapshot, style = MaterialTheme.typography.bodyLarge)
+                Text(item.habit.name, style = MaterialTheme.typography.bodyLarge)
                 Text(frequencyLabel(item.habit), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             TextButton(onClick = onEdit) { Text("编辑") }
