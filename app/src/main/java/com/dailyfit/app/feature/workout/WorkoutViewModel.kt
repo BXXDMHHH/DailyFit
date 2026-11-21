@@ -115,8 +115,22 @@ class WorkoutViewModel(
         val id = _state.value.session?.id ?: return
         viewModelScope.launch {
             runCatching {
-                workouts.updateSet(id, set.id, weight.toDoubleOrNull(), reps.toIntOrNull(), done)
-                refresh(id)
+                val actualWeight = weight.toDoubleOrNull()
+                val actualReps = reps.toIntOrNull()
+                workouts.updateSet(id, set.id, actualWeight, actualReps, done)
+                _state.update { current ->
+                    current.copy(exercises = current.exercises.map { exercise ->
+                        if (exercise.row.id != set.sessionExerciseId) exercise
+                        else exercise.copy(sets = exercise.sets.map { currentSet ->
+                            if (currentSet.id != set.id) currentSet
+                            else currentSet.copy(
+                                actualWeight = actualWeight,
+                                actualReps = actualReps,
+                                isCompleted = done
+                            )
+                        })
+                    })
+                }
             }.onFailure { message(it) }
         }
     }
