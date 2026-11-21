@@ -166,6 +166,29 @@ class PlanViewModel(
         _uiState.value = _uiState.value.copy(planActions = _uiState.value.planActions.filterIndexed { i, _ -> i != index })
     }
 
+    fun importWeeklyActionsIntoDailyPlan() {
+        val state = _uiState.value
+        val ownerId = state.editingActionOwnerId ?: return
+        if (state.editingActionOwnerType != "DAILY_PLAN") return
+        viewModelScope.launch {
+            runCatching {
+                repository.importWeeklyActions(state.selectedDate, ownerId)
+                repository.getPlanExercises("DAILY_PLAN", ownerId)
+            }.onSuccess { rows ->
+                _uiState.value = _uiState.value.copy(
+                    planActions = rows.map {
+                        PlanActionDraft(
+                            it.exerciseId, it.exerciseNameSnapshot, it.categorySnapshot,
+                            it.equipmentSnapshot, it.notesSnapshot, it.targetSets.toString(),
+                            it.targetReps, it.targetWeight.toString()
+                        )
+                    },
+                    message = "已从每周模板复制动作；这是当天独立配置"
+                )
+            }.onFailure { showError(it) }
+        }
+    }
+
     fun saveActionEditor() {
         val state = _uiState.value
         val ownerType = state.editingActionOwnerType ?: return
