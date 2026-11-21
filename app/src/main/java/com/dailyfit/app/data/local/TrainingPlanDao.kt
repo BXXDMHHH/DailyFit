@@ -49,6 +49,9 @@ interface DailyWorkoutPlanDao {
     @Query("SELECT * FROM daily_workout_plans WHERE businessDate = :date AND isPrimary = 1 LIMIT 1")
     suspend fun getPrimary(date: String): DailyWorkoutPlanEntity?
 
+    @Query("SELECT * FROM daily_workout_plans WHERE id = :id LIMIT 1")
+    suspend fun getById(id: String): DailyWorkoutPlanEntity?
+
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insert(plan: DailyWorkoutPlanEntity)
 
