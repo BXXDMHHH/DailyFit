@@ -100,8 +100,9 @@ fun WorkoutHistorySection(database: DailyFitDatabase, modifier: Modifier = Modif
                         Text(exercise.exerciseNameSnapshot, style = MaterialTheme.typography.titleSmall)
                         sets.forEach { set ->
                             Text(
-                                "第${set.setNumber}组：实际 ${set.actualWeight?.toString() ?: "—"} kg × " +
-                                    "${set.actualReps?.toString() ?: "—"} 次" + if (set.isCompleted) " ✓" else ""
+                                "第${set.setNumber}组：目标 ${set.targetWeight} kg × ${set.targetReps} 次；实际 " +
+                                    "${set.actualWeight?.toString() ?: "—"} kg × ${set.actualReps?.toString() ?: "—"} 次" +
+                                    if (set.isCompleted) " ✓" else ""
                             )
                         }
                     }
