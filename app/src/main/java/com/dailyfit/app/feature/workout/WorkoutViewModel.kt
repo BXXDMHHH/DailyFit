@@ -10,6 +10,7 @@ import com.dailyfit.app.data.local.WorkoutHistoryEntity
 import com.dailyfit.app.data.local.WorkoutSessionEntity
 import com.dailyfit.app.data.local.WorkoutSessionExerciseEntity
 import com.dailyfit.app.data.local.WorkoutSessionSetEntity
+import com.dailyfit.app.data.repository.ExerciseProgress
 import com.dailyfit.app.data.repository.TrainingPlanRepository
 import com.dailyfit.app.data.repository.WorkoutRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -20,7 +21,8 @@ import kotlinx.coroutines.launch
 
 data class WorkoutExerciseUi(
     val row: WorkoutSessionExerciseEntity,
-    val sets: List<WorkoutSessionSetEntity>
+    val sets: List<WorkoutSessionSetEntity>,
+    val progress: ExerciseProgress = ExerciseProgress(null, 2.5, null, null)
 )
 
 data class WorkoutUiState(
@@ -59,7 +61,10 @@ class WorkoutViewModel(
         viewModelScope.launch {
             val dao = database.workoutSessionDao()
             val rows = dao.getExercises(id)
-            _state.update { it.copy(exercises = rows.map { exercise -> WorkoutExerciseUi(exercise, dao.getSets(exercise.id)) }) }
+            val exercises = rows.map { exercise ->
+                WorkoutExerciseUi(exercise, dao.getSets(exercise.id), workouts.getExerciseProgress(exercise))
+            }
+            _state.update { it.copy(exercises = exercises) }
         }
     }
 
@@ -114,6 +119,23 @@ class WorkoutViewModel(
         }
     }
 
+    fun setWorkingWeight(exerciseId: String, weight: Double) {
+        val sessionId = _state.value.session?.id ?: return
+        viewModelScope.launch {
+            runCatching { workouts.updateExerciseWorkingWeight(sessionId, exerciseId, weight); refresh(sessionId) }
+                .onFailure { message(it) }
+        }
+    }
+
+    fun setWeightIncrement(exerciseId: String, increment: Double) {
+        val sessionId = _state.value.session?.id ?: return
+        val exercise = _state.value.exercises.firstOrNull { it.row.id == exerciseId } ?: return
+        viewModelScope.launch {
+            runCatching { workouts.saveExerciseIncrement(exercise.row, increment); refresh(sessionId) }
+                .onFailure { message(it) }
+        }
+    }
+
     fun updateSet(set: WorkoutSessionSetEntity, weight: String, reps: String, done: Boolean) {
         val id = _state.value.session?.id ?: return
         viewModelScope.launch {
@@ -126,14 +148,33 @@ class WorkoutViewModel(
                         if (exercise.row.id != set.sessionExerciseId) exercise
                         else exercise.copy(sets = exercise.sets.map { currentSet ->
                             if (currentSet.id != set.id) currentSet
-                            else currentSet.copy(
-                                actualWeight = actualWeight,
-                                actualReps = actualReps,
-                                isCompleted = done
-                            )
+                            else currentSet.copy(actualWeight = actualWeight, actualReps = actualReps, isCompleted = done)
                         })
                     })
                 }
+            }.onFailure { message(it) }
+        }
+    }
+
+    fun recordOneRepMax(exerciseId: String, actualOneRepMaxText: String) {
+        val sessionId = _state.value.session?.id ?: return
+        val exercise = _state.value.exercises.firstOrNull { it.row.id == exerciseId } ?: return
+        viewModelScope.launch {
+            runCatching {
+                val actual = if (actualOneRepMaxText.isBlank()) null else
+                    actualOneRepMaxText.trim().toDoubleOrNull() ?: error("请输入有效的实际 1RM")
+                val estimated = exercise.sets.asSequence()
+                    .filter { it.isCompleted && (it.actualWeight ?: 0.0) > 0 && (it.actualReps ?: 0) in 1..30 }
+                    .map { it.actualWeight!! * (1.0 + it.actualReps!! / 30.0) }
+                    .maxOrNull()
+                require(actual != null || estimated != null) { "请填写实际 1RM，或先完成至少一组训练以计算估算 1RM" }
+                workouts.saveOneRepMax(exercise.row, actual, estimated)
+                refresh(sessionId)
+                _state.update { it.copy(message = buildString {
+                    append("1RM 已记录")
+                    if (actual != null) append(" · 实际 ").append(actual).append(" kg")
+                    if (estimated != null) append(" · 估算 ").append(estimated).append(" kg")
+                }) }
             }.onFailure { message(it) }
         }
     }
@@ -180,6 +221,6 @@ class WorkoutViewModelFactory(
         if (modelClass.isAssignableFrom(WorkoutViewModel::class.java)) {
             return WorkoutViewModel(workouts, plans, database) as T
         }
-        throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
+        throw IllegalArgumentException("Unknown model class: " + modelClass.name)
     }
 }
