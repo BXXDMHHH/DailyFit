@@ -65,7 +65,7 @@ fun PlanScreen(viewModel: PlanViewModel, habitViewModel: HabitViewModel, modifie
         item {
             Column(Modifier.padding(top = 20.dp)) {
                 Text("训练计划", style = MaterialTheme.typography.headlineMedium)
-                Text("每周模板、单日安排与动作库彼此独立", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("完整计划库定义训练内容；每周日程和单日安排负责日期安排", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
         item { HabitManagementSection(state = habitState, viewModel = habitViewModel) }
@@ -116,7 +116,7 @@ fun PlanScreen(viewModel: PlanViewModel, habitViewModel: HabitViewModel, modifie
                                     Button(
                                         onClick = { pendingTemplateImport = template },
                                         enabled = !state.isLoading && templateActions.isNotEmpty() && state.dailyPlans.any { it.isPrimary && it.status == "PLANNED" }
-                                    ) { Text("导入${state.selectedDate}") }
+                                    ) { Text("导入所选日期") }
                                     TextButton(onClick = { deletingTemplate = template }) { Text("删除") }
                                 }
                             }
