@@ -132,6 +132,13 @@ class TrainingPlanRepository(
         if (database.appMetadataDao().getValue(seedKey) != null) return
         val now = clock.millis()
         val exerciseDefinitions = listOf(
+            ExerciseEntity("builtin_bench_press", "卧推", "胸部", "杠铃", "", now, now),
+            ExerciseEntity("builtin_squat", "深蹲", "腿部", "杠铃", "", now, now),
+            ExerciseEntity("builtin_deadlift", "硬拉", "背部", "杠铃", "", now, now),
+            ExerciseEntity("builtin_barbell_row", "杠铃划船", "背部", "杠铃", "", now, now),
+            ExerciseEntity("builtin_lat_pulldown", "高位下拉", "背部", "高位下拉器", "", now, now),
+            ExerciseEntity("builtin_shoulder_press", "肩推", "肩部", "哑铃", "", now, now),
+            ExerciseEntity("builtin_lateral_raise", "侧平举", "肩部", "哑铃", "", now, now),
             ExerciseEntity("builtin_db_shoulder_press", "坐姿哑铃推举", "肩部", "哑铃", "", now, now),
             ExerciseEntity("builtin_db_lateral_raise", "哑铃侧平举", "肩部", "哑铃", "", now, now),
             ExerciseEntity("builtin_cable_lateral_raise", "绳索侧平举", "肩部", "绳索器", "", now, now),
@@ -152,7 +159,6 @@ class TrainingPlanRepository(
             ExerciseEntity("builtin_overhead_triceps", "过顶绳索臂屈伸", "手臂", "绳索器", "", now, now)
         )
         exerciseDefinitions.forEach { if (exerciseDao.getById(it.id) == null) exerciseDao.insert(it) }
-        val byId = exerciseDefinitions.associateBy { it.id }
         val definitions = listOf(
             Triple("肩部训练", "肩部", "肩推与侧平举为主，兼顾后三角肌。") to listOf(
                 PlanActionInput("builtin_db_shoulder_press", "坐姿哑铃推举", "肩部", "哑铃", targetSets = 3, targetReps = "8-10"),
@@ -335,21 +341,6 @@ class TrainingPlanRepository(
     suspend fun getPlanExercises(ownerType: String, ownerId: String): List<WorkoutPlanExerciseEntity> {
         require(ownerType == "WEEKLY_DAY" || ownerType == "DAILY_PLAN" || ownerType == "WORKOUT_TEMPLATE")
         return planExerciseDao.getForOwner(ownerType, ownerId)
-    }
-
-    /** Explicitly replaces one dated plan's actions with the current weekly template actions. */
-    suspend fun importWeeklyActions(date: LocalDate, dailyPlanId: String) {
-        database.withTransaction {
-            val dailyPlan = dailyDao.getById(dailyPlanId) ?: error("当天训练安排不存在")
-            require(dailyPlan.businessDate == date.toString()) { "训练日期不匹配" }
-            val version = weeklyDao.getVersionForDate(date.toString()) ?: error("没有可用的每周训练模板")
-            val day = weeklyDao.getDay(version.id, date.dayOfWeek.value) ?: error("每周模板缺少当天配置")
-            val copied = planExerciseDao.getForOwner("WEEKLY_DAY", day.id).map { action ->
-                action.copy(id = UUID.randomUUID().toString(), ownerType = "DAILY_PLAN", ownerId = dailyPlanId)
-            }
-            planExerciseDao.deleteForOwner("DAILY_PLAN", dailyPlanId)
-            if (copied.isNotEmpty()) planExerciseDao.insertAll(copied)
-        }
     }
 
     suspend fun savePlanExercises(ownerType: String, ownerId: String, actions: List<PlanActionInput>) {
