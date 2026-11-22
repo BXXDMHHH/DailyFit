@@ -138,6 +138,24 @@ class TrainingPlanRepositoryTest {
     }
 
     @Test
+    fun deletingExtraPlanWithAnotherDateCannotDeleteItsActionSnapshot() = runBlocking {
+        repository.ensureInitialTemplate()
+        val extraId = repository.addExtra(today, "晚间跑步")
+        repository.savePlanExercises(
+            "DAILY_PLAN",
+            extraId,
+            listOf(PlanActionInput(null, "慢跑", targetSets = 2, targetReps = "10-15", targetWeight = 0.0))
+        )
+
+        assertFalse(repository.deleteExtra(today.plusDays(1), extraId))
+        assertEquals(1, repository.observeDailyPlans(today).first().count { it.id == extraId })
+        assertEquals(1, repository.getPlanExercises("DAILY_PLAN", extraId).size)
+
+        assertTrue(repository.deleteExtra(today, extraId))
+        assertTrue(repository.getPlanExercises("DAILY_PLAN", extraId).isEmpty())
+    }
+
+    @Test
     fun blankExerciseNameIsRejected() = runBlocking {
         assertTrue(runCatching { repository.saveExercise(null, "  ", "", "", "") }.isFailure)
         assertTrue(repository.observeExercises("").first().isEmpty())
