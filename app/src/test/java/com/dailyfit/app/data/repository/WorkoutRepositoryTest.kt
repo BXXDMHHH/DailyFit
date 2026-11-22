@@ -180,4 +180,34 @@ class WorkoutRepositoryTest {
   assertFalse(planRepository.observeExercises("").first().any { it.id == deletedId })
  }
 
+ @Test fun setOperationsRejectExerciseAndSetIdsFromAnotherWorkout() = runBlocking {
+  val firstPlan = DailyWorkoutPlanEntity("owner-plan-1", "2026-11-22", "第一场", "", "PLANNED", true, null, 1, 1)
+  val firstSession = repo.start(firstPlan)
+  repo.addExercise(firstSession, ExerciseEntity("owner-ex-1", "卧推", "胸部", "杠铃", "", 1, 1), targetSets = 2)
+  val firstExercise = db.workoutSessionDao().getExercises(firstSession).single()
+  val foreignSet = db.workoutSessionDao().getSets(firstExercise.id).first().id
+  repo.finish(firstSession)
+
+  val secondPlan = DailyWorkoutPlanEntity("owner-plan-2", "2026-11-22", "第二场", "", "PLANNED", false, null, 1, 1)
+  val secondSession = repo.start(secondPlan)
+  repo.addExercise(secondSession, ExerciseEntity("owner-ex-2", "深蹲", "腿部", "杠铃", "", 1, 1), targetSets = 2)
+  val secondExercise = db.workoutSessionDao().getExercises(secondSession).single()
+  val before = db.workoutSessionDao().getSets(secondExercise.id)
+
+  assertTrue(runCatching { repo.addSet(secondSession, firstExercise.id) }.isFailure)
+  assertTrue(runCatching { repo.removeSet(secondSession, secondExercise.id, foreignSet) }.isFailure)
+  assertEquals(before, db.workoutSessionDao().getSets(secondExercise.id))
+ }
+
+ @Test fun workoutSetInputRejectsNegativeAndNonFiniteWeightsWithoutChangingSavedValues() = runBlocking {
+  val plan = DailyWorkoutPlanEntity("finite-plan", "2026-11-22", "训练", "", "PLANNED", true, null, 1, 1)
+  val session = repo.start(plan)
+  repo.addExercise(session, ExerciseEntity("finite-ex", "深蹲", "腿部", "杠铃", "", 1, 1))
+  val exercise = db.workoutSessionDao().getExercises(session).single()
+  val set = db.workoutSessionDao().getSets(exercise.id).first()
+  assertTrue(runCatching { repo.updateSet(session, set.id, Double.NaN, 8, true) }.isFailure)
+  assertTrue(runCatching { repo.updateSet(session, set.id, Double.POSITIVE_INFINITY, 8, true) }.isFailure)
+  assertTrue(runCatching { repo.updateSet(session, set.id, -1.0, 8, true) }.isFailure)
+  assertTrue(db.workoutSessionDao().getSets(exercise.id).all { it.actualWeight == null })
+ }
 }

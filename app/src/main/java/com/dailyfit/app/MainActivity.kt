@@ -55,17 +55,17 @@ private enum class MainDestination(val route: String, val label: String) {
 @Composable
 private fun DailyFitApp() {
     val navController = rememberNavController()
-    val activity = LocalContext.current as ComponentActivity
-    val app = activity.application as DailyFitApplication
+    val app = LocalContext.current.applicationContext as DailyFitApplication
     val habitViewModel: HabitViewModel = viewModel(
-        viewModelStoreOwner = activity,
         factory = HabitViewModelFactory(app.habitRepository, app.temporaryTaskRepository)
     )
     val planViewModel: PlanViewModel = viewModel(
-        viewModelStoreOwner = activity,
         factory = PlanViewModelFactory(app.trainingPlanRepository)
     )
-    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { habitViewModel.refreshDate() }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        habitViewModel.refreshDate()
+        planViewModel.refreshDate()
+    }
     val entry by navController.currentBackStackEntryAsState()
     val currentRoute = entry?.destination?.route
     LaunchedEffect(currentRoute) {
@@ -119,7 +119,6 @@ private fun DailyFitApp() {
             composable("workout") {
                 val planState by planViewModel.uiState.collectAsStateWithLifecycle()
                 val workoutViewModel: WorkoutViewModel = viewModel(
-                    viewModelStoreOwner = activity,
                     factory = WorkoutViewModelFactory(app.workoutRepository, app.trainingPlanRepository, app.database)
                 )
                 WorkoutScreen(

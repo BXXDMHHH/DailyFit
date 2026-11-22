@@ -4,6 +4,7 @@ import androidx.room.withTransaction
 import com.dailyfit.app.data.local.*
 import java.time.Clock
 import java.util.UUID
+import com.dailyfit.app.domain.model.WorkoutInputRules
 
 class WorkoutRepository(private val db:DailyFitDatabase, private val clock:Clock=Clock.systemDefaultZone()) {
  private val dao=db.workoutSessionDao()
@@ -22,14 +23,15 @@ class WorkoutRepository(private val db:DailyFitDatabase, private val clock:Clock
   val now=clock.millis()
   dao.insertSession(WorkoutSessionEntity(sessionId,plan.id,plan.businessDate,plan.title,"IN_PROGRESS",now,now))
   actions.sortedBy { it.sortOrder }.forEachIndexed { index, action ->
-   require(action.targetSets in 1..30 && action.targetWeight >= 0.0 && action.targetReps.isNotBlank())
+   require(action.targetSets in 1..30 && WorkoutInputRules.isValidWeight(action.targetWeight))
+   val targetReps = WorkoutInputRules.parseTargetReps(action.targetReps)
    val exerciseId=id()
    dao.insertExercise(WorkoutSessionExerciseEntity(
     exerciseId,sessionId,action.exerciseId,action.exerciseNameSnapshot,action.categorySnapshot,
     action.equipmentSnapshot,action.notesSnapshot,index,action.targetSets,action.targetReps,
     action.targetWeight,false
    ))
-   val reps=action.targetReps.substringBefore("-").trim().toIntOrNull() ?: 0
+   val reps=targetReps
    dao.insertSets((1..action.targetSets).map { setNumber ->
     WorkoutSessionSetEntity(id(),exerciseId,setNumber,reps,action.targetWeight,null,null,false,now)
    })
@@ -38,7 +40,9 @@ class WorkoutRepository(private val db:DailyFitDatabase, private val clock:Clock
  }
  suspend fun addExercise(sessionId:String, exercise:ExerciseEntity?, temporaryName:String?=null,
                          targetSets:Int=3,targetReps:String="8-12",targetWeight:Double=0.0) = db.withTransaction {
-  require(targetSets in 1..30); require(targetWeight>=0)
+  require(targetSets in 1..30)
+  require(WorkoutInputRules.isValidWeight(targetWeight)) { "目标重量必须是非负有限数值" }
+  val targetRepCount = WorkoutInputRules.parseTargetReps(targetReps)
   val session=dao.get(sessionId) ?: error("训练不存在")
   check(session.status=="IN_PROGRESS") { "训练已结束，不能修改" }
   val name=exercise?.name ?: temporaryName?.trim().orEmpty()
@@ -49,7 +53,7 @@ class WorkoutRepository(private val db:DailyFitDatabase, private val clock:Clock
    exercise?.category.orEmpty(),exercise?.equipment.orEmpty(),exercise?.notes.orEmpty(),
    order,targetSets,targetReps,targetWeight,exercise==null))
   dao.insertSets((1..targetSets).map { n -> WorkoutSessionSetEntity(id(),exId,n,
-   targetReps.substringBefore("-").trim().toIntOrNull() ?: 0,targetWeight,null,null,false,clock.millis()) })
+   targetRepCount,targetWeight,null,null,false,clock.millis()) })
  }
  suspend fun removeExercise(sessionId:String,exerciseId:String) = db.withTransaction {
   val session=dao.get(sessionId) ?: error("训练不存在"); check(session.status=="IN_PROGRESS")
@@ -57,19 +61,23 @@ class WorkoutRepository(private val db:DailyFitDatabase, private val clock:Clock
  }
  suspend fun addSet(sessionId:String,exerciseId:String) = db.withTransaction {
   val session=dao.get(sessionId) ?: error("训练不存在"); check(session.status=="IN_PROGRESS")
+  check(dao.getExerciseForSession(exerciseId,sessionId) != null) { "动作不属于当前训练" }
   val sets=dao.getSets(exerciseId); val last=sets.lastOrNull()
   dao.insertSets(listOf(WorkoutSessionSetEntity(id(),exerciseId,((sets.maxOfOrNull { it.setNumber } ?: 0)+1),
    last?.targetReps ?: 0,last?.targetWeight ?: 0.0,null,null,false,clock.millis())))
  }
  suspend fun removeSet(sessionId:String,exerciseId:String,setId:String) = db.withTransaction {
   val session=dao.get(sessionId) ?: error("训练不存在"); check(session.status=="IN_PROGRESS")
+  check(dao.getExerciseForSession(exerciseId,sessionId) != null) { "动作不属于当前训练" }
   val sets=dao.getSets(exerciseId); require(sets.size>1) { "每个动作至少保留一组" }
-  dao.deleteSet(setId,sessionId)
+  check(dao.deleteSet(setId,exerciseId,sessionId)==1) { "训练组不存在或已发生变化" }
  }
- suspend fun updateSet(sessionId:String,setId:String,weight:Double?,reps:Int?,done:Boolean) {
-  require(weight==null || weight>=0); require(reps==null || reps>=0)
-  check(dao.updateSet(setId,sessionId,weight,reps,done,clock.millis())>0) { "训练已结束或数据不存在" }
-  dao.touch(sessionId,clock.millis())
+ suspend fun updateSet(sessionId:String,setId:String,weight:Double?,reps:Int?,done:Boolean) = db.withTransaction {
+  require(weight==null || (weight.isFinite() && weight>=0)) { "实际重量必须是非负有限数值" }
+  require(reps==null || reps in 0..999) { "实际次数必须在 0 到 999 之间" }
+  val now=clock.millis()
+  check(dao.updateSet(setId,sessionId,weight,reps,done,now)>0) { "训练已结束或数据不存在" }
+  check(dao.touch(sessionId,now)>0) { "训练已结束或数据不存在" }
  }
  suspend fun rename(sessionId:String,title:String) {
   require(title.isNotBlank()); check(dao.rename(sessionId,title.trim(),clock.millis())>0)

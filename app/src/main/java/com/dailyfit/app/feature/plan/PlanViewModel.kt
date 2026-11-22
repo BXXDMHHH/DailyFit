@@ -1,6 +1,11 @@
 package com.dailyfit.app.feature.plan
 
 import androidx.lifecycle.ViewModel
+import java.time.Clock
+import java.time.Duration
+import java.time.LocalDateTime
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.dailyfit.app.data.local.DailyWorkoutPlanEntity
@@ -45,15 +50,19 @@ data class PlanUiState(
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class PlanViewModel(
-    private val repository: TrainingPlanRepository
+    private val repository: TrainingPlanRepository,
+    private val clock: Clock = Clock.systemDefaultZone()
 ) : ViewModel() {
-    private val selectedDate = MutableStateFlow(LocalDate.now())
+    private val selectedDate = MutableStateFlow(LocalDate.now(clock))
+    private var observedCurrentDate = LocalDate.now(clock)
+    private var midnightJob: Job? = null
     private val exerciseQuery = MutableStateFlow("")
-    private val _uiState = MutableStateFlow(PlanUiState())
+    private val _uiState = MutableStateFlow(PlanUiState(selectedDate = LocalDate.now(clock)))
     val uiState: StateFlow<PlanUiState> = _uiState.asStateFlow()
 
     init {
         viewModelScope.launch { runCatching { repository.ensureInitialTemplate() }.onFailure(::showError) }
+        scheduleMidnightRefresh()
         viewModelScope.launch {
             selectedDate.flatMapLatest { date ->
                 runCatching { repository.ensureDailyPrimary(date) }.onFailure(::showError)
@@ -83,7 +92,38 @@ class PlanViewModel(
         }
     }
 
-    fun selectDate(date: LocalDate) { selectedDate.value = date }
+    fun selectDate(date: LocalDate) {
+        if (date == selectedDate.value) return
+        selectedDate.value = date
+        _uiState.value = _uiState.value.copy(
+            isLoading = true,
+            selectedDate = date,
+            weeklyDays = emptyList(),
+            dailyPlans = emptyList()
+        )
+    }
+
+    /** Refreshes the selected day only when it was following the previous current day. */
+    fun refreshDate() {
+        val latest = LocalDate.now(clock)
+        val previous = observedCurrentDate
+        if (latest != previous) {
+            observedCurrentDate = latest
+            if (selectedDate.value == previous) selectDate(latest)
+        }
+    }
+
+    private fun scheduleMidnightRefresh() {
+        midnightJob?.cancel()
+        midnightJob = viewModelScope.launch {
+            while (true) {
+                val now = LocalDateTime.now(clock)
+                val nextDay = now.toLocalDate().plusDays(1).atStartOfDay(clock.zone)
+                delay(Duration.between(now, nextDay).toMillis().coerceAtLeast(1L))
+                refreshDate()
+            }
+        }
+    }
 
     fun setExerciseQuery(query: String) { exerciseQuery.value = query }
 

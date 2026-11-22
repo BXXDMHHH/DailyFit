@@ -22,6 +22,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -52,7 +53,7 @@ fun HistoryScreen(
     var historyLoaded by remember { mutableStateOf(false) }
     var statsLoaded by remember { mutableStateOf(false) }
     var historyError by remember { mutableStateOf<String?>(null) }
-    var reloadKey by remember { mutableStateOf(0) }
+    var reloadKey by remember { mutableIntStateOf(0) }
     var selected by remember { mutableStateOf<WorkoutHistoryEntity?>(null) }
     var details by remember {
         mutableStateOf(emptyList<Pair<WorkoutHistoryExerciseEntity, List<WorkoutHistorySetEntity>>>())
@@ -168,6 +169,7 @@ fun HistoryScreen(
             Card(Modifier.fillMaxWidth().clickable {
                 scope.launch {
                     selected = row
+                    details = emptyList()
                     detailsLoading = true
                     detailsError = null
                     runCatching {

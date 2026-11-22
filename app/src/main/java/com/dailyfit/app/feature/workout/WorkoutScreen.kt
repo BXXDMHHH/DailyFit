@@ -57,6 +57,9 @@ fun WorkoutScreen(
 
         if (state.session == null) {
             item { Text("选择今天的训练安排开始记录") }
+            if (plans.isEmpty()) {
+                item { Text("今天暂无训练安排，请先到计划页设置训练。", color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            }
             items(plans, key = { it.id }) { plan ->
                 Card(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {

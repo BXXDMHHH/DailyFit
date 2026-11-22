@@ -53,6 +53,18 @@ class TrainingPlanRepositoryTest {
     }
 
     @Test
+    fun viewingDateBeforeFirstTemplateDoesNotCreateDuplicateCurrentTemplate() = runBlocking {
+        repository.ensureInitialTemplate()
+        val before = database.weeklyWorkoutPlanDao().getVersionForDate(today.toString())!!
+
+        repository.ensureDailyPrimary(today.minusDays(1))
+
+        val after = database.weeklyWorkoutPlanDao().getVersionForDate(today.toString())!!
+        assertEquals(before.id, after.id)
+        assertTrue(repository.observeDailyPlans(today.minusDays(1)).first().isEmpty())
+    }
+
+    @Test
     fun weeklyTemplateVersionOnlyAppliesFromEffectiveDateForward() = runBlocking {
         repository.ensureInitialTemplate()
         val oldMonday = repository.observeWeeklyPlan(today).first().first { it.dayOfWeek == 1 }
@@ -135,6 +147,24 @@ class TrainingPlanRepositoryTest {
         assertEquals("修改后", updated.notes)
         assertTrue(repository.deleteExercise(updated.id))
         assertTrue(repository.observeExercises("").first().isEmpty())
+    }
+
+    @Test
+    fun deletingExtraPlanWithAnotherDateCannotDeleteItsActionSnapshot() = runBlocking {
+        repository.ensureInitialTemplate()
+        val extraId = repository.addExtra(today, "晚间跑步")
+        repository.savePlanExercises(
+            "DAILY_PLAN",
+            extraId,
+            listOf(PlanActionInput(null, "慢跑", targetSets = 2, targetReps = "10-15", targetWeight = 0.0))
+        )
+
+        assertFalse(repository.deleteExtra(today.plusDays(1), extraId))
+        assertEquals(1, repository.observeDailyPlans(today).first().count { it.id == extraId })
+        assertEquals(1, repository.getPlanExercises("DAILY_PLAN", extraId).size)
+
+        assertTrue(repository.deleteExtra(today, extraId))
+        assertTrue(repository.getPlanExercises("DAILY_PLAN", extraId).isEmpty())
     }
 
     @Test
