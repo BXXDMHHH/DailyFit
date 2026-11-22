@@ -44,7 +44,7 @@ class WorkoutRepository(private val db:DailyFitDatabase, private val clock:Clock
   val name=exercise?.name ?: temporaryName?.trim().orEmpty()
   require(name.isNotBlank()) { "动作名称不能为空" }
   val exId=id()
-  val order=dao.getExercises(sessionId).size
+  val order=dao.nextExerciseOrder(sessionId)
   dao.insertExercise(WorkoutSessionExerciseEntity(exId,sessionId,exercise?.id,name,
    exercise?.category.orEmpty(),exercise?.equipment.orEmpty(),exercise?.notes.orEmpty(),
    order,targetSets,targetReps,targetWeight,exercise==null))
@@ -67,6 +67,9 @@ class WorkoutRepository(private val db:DailyFitDatabase, private val clock:Clock
   val session=dao.get(sessionId) ?: error("训练不存在"); check(session.status=="IN_PROGRESS")
   val sets=dao.getSetsForExercise(exerciseId,sessionId); require(sets.size>1) { "每个动作至少保留一组" }
   check(dao.deleteSet(setId,sessionId)==1) { "训练组不存在或训练已结束" }
+  dao.getSetsForExercise(exerciseId,sessionId).forEachIndexed { index, set ->
+   dao.renumberSet(set.id,sessionId,index+1,clock.millis())
+  }
  }
  suspend fun updateSet(sessionId:String,setId:String,weight:Double?,reps:Int?,done:Boolean) {
   require(weight==null || (weight.isFinite() && weight>=0)); require(reps==null || reps>=0)
