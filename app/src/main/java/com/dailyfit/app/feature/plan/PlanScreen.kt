@@ -117,6 +117,29 @@ fun PlanScreen(viewModel: PlanViewModel, habitViewModel: HabitViewModel, modifie
                         modifier = Modifier.fillMaxWidth()
                     )
                     Text("只修改所选日期，不会改变每周固定模板。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                    ) {
+                        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text("训练动作导入", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                            Text(
+                                "先在上方「每周固定计划 → 设置动作」配置常用动作，再一键复制到所选日期。",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                            Text(
+                                "注意：导入会覆盖当天主要训练现有动作，不影响每周模板。",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                            Button(
+                                onClick = viewModel::importWeeklyActionsForSelectedDate,
+                                enabled = !state.isLoading && state.dailyPlans.any { it.isPrimary }
+                            ) { Text("一键导入本周模板动作") }
+                        }
+                    }
                     if (!state.isLoading && state.dailyPlans.isEmpty()) {
                         Text("所选日期暂无训练安排。", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }

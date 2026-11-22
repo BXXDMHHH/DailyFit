@@ -88,9 +88,6 @@ class HabitViewModel(
             runCatching { repository.setTodayCompletion(recordId, completed) }
                 .onSuccess { changed ->
                     if (!changed) showMessage("只能打卡或取消今天的习惯")
-                    else if (completed) showMessage(
-                        listOf("完成一项习惯，今天又向前走了一步。", "保持这个节奏，你正在积累改变。", "很好，持续行动比完美计划更重要。").random()
-                    )
                 }
                 .onFailure { showError(it) }
         }
