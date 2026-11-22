@@ -8,6 +8,7 @@ import com.dailyfit.app.data.local.ExerciseEntity
 import com.dailyfit.app.data.local.WeeklyWorkoutPlanDayEntity
 import com.dailyfit.app.data.local.WeeklyWorkoutPlanVersionEntity
 import com.dailyfit.app.data.local.WorkoutPlanExerciseEntity
+import com.dailyfit.app.data.local.WorkoutTemplateEntity
 import java.time.Clock
 import java.time.LocalDate
 import java.util.UUID
@@ -44,6 +45,7 @@ class TrainingPlanRepository(
     private val dailyDao = database.dailyWorkoutPlanDao()
     private val exerciseDao = database.exerciseDao()
     private val planExerciseDao = database.workoutPlanExerciseDao()
+    private val workoutTemplateDao = database.workoutTemplateDao()
 
     suspend fun ensureInitialTemplate() {
         database.withTransaction {
@@ -72,7 +74,141 @@ class TrainingPlanRepository(
                 weeklyDao.insertVersion(version)
                 weeklyDao.insertDays(defaultWeek(version.id))
             }
+            seedDefaultWorkoutTemplates()
         }
+    }
+
+    fun observeWorkoutTemplates(): Flow<List<WorkoutTemplateEntity>> = workoutTemplateDao.observeAll()
+    fun observeWorkoutTemplateExercises(): Flow<List<WorkoutPlanExerciseEntity>> = planExerciseDao.observeForOwnerType("WORKOUT_TEMPLATE")
+
+    suspend fun saveWorkoutTemplate(
+        id: String?,
+        name: String,
+        category: String,
+        description: String
+    ): String {
+        require(name.isNotBlank()) { "训练模板名称不能为空" }
+        val now = clock.millis()
+        if (id == null) {
+            val newId = UUID.randomUUID().toString()
+            workoutTemplateDao.insert(WorkoutTemplateEntity(newId, name.trim(), category.trim(), description.trim(), now, now))
+            return newId
+        }
+        val old = workoutTemplateDao.getById(id) ?: error("训练模板不存在")
+        workoutTemplateDao.update(old.copy(
+            name = name.trim(),
+            category = category.trim(),
+            description = description.trim(),
+            updatedAt = now
+        ))
+        return id
+    }
+
+    suspend fun deleteWorkoutTemplate(id: String): Boolean = database.withTransaction {
+        if (workoutTemplateDao.getById(id) == null) return@withTransaction false
+        planExerciseDao.deleteForOwner("WORKOUT_TEMPLATE", id)
+        workoutTemplateDao.delete(id) == 1
+    }
+
+    /** Copies a complete reusable session template into one dated plan. The copy is independent. */
+    suspend fun importWorkoutTemplate(date: LocalDate, dailyPlanId: String, templateId: String) {
+        database.withTransaction {
+            val dailyPlan = dailyDao.getById(dailyPlanId) ?: error("当天训练安排不存在")
+            require(dailyPlan.businessDate == date.toString() && dailyPlan.isPrimary) { "只能导入到所选日期的主要训练" }
+            require(dailyPlan.status == WorkoutPlanStatus.PLANNED.name) { "训练已完成或跳过，不能替换训练计划" }
+            require(database.workoutSessionDao().getActive() == null) { "请先结束或恢复当前训练，再更换训练计划" }
+            val template = workoutTemplateDao.getById(templateId) ?: error("训练模板不存在")
+            val actions = planExerciseDao.getForOwner("WORKOUT_TEMPLATE", templateId)
+            require(actions.isNotEmpty()) { "这个训练模板还没有配置动作" }
+            check(dailyDao.updatePrimary(dailyPlanId, date.toString(), template.name, template.description, clock.millis()) == 1) { "当天训练安排已变化，请刷新后重试" }
+            planExerciseDao.deleteForOwner("DAILY_PLAN", dailyPlanId)
+            val copied = actions.map { action ->
+                action.copy(id = UUID.randomUUID().toString(), ownerType = "DAILY_PLAN", ownerId = dailyPlanId)
+            }
+            planExerciseDao.insertAll(copied)
+        }
+    }
+
+    private suspend fun seedDefaultWorkoutTemplates() {
+        val seedKey = "default_workout_templates_seeded_v1"
+        if (database.appMetadataDao().getValue(seedKey) != null) return
+        val now = clock.millis()
+        val exerciseDefinitions = listOf(
+            ExerciseEntity("builtin_bench_press", "卧推", "胸部", "杠铃", "", now, now),
+            ExerciseEntity("builtin_squat", "深蹲", "腿部", "杠铃", "", now, now),
+            ExerciseEntity("builtin_deadlift", "硬拉", "背部", "杠铃", "", now, now),
+            ExerciseEntity("builtin_barbell_row", "杠铃划船", "背部", "杠铃", "", now, now),
+            ExerciseEntity("builtin_lat_pulldown", "高位下拉", "背部", "高位下拉器", "", now, now),
+            ExerciseEntity("builtin_shoulder_press", "肩推", "肩部", "哑铃", "", now, now),
+            ExerciseEntity("builtin_lateral_raise", "侧平举", "肩部", "哑铃", "", now, now),
+            ExerciseEntity("builtin_db_shoulder_press", "坐姿哑铃推举", "肩部", "哑铃", "", now, now),
+            ExerciseEntity("builtin_db_lateral_raise", "哑铃侧平举", "肩部", "哑铃", "", now, now),
+            ExerciseEntity("builtin_cable_lateral_raise", "绳索侧平举", "肩部", "绳索器", "", now, now),
+            ExerciseEntity("builtin_reverse_pec_deck", "反向蝴蝶机飞鸟", "肩部", "蝴蝶机", "", now, now),
+            ExerciseEntity("builtin_incline_db_press", "上斜哑铃卧推", "胸部", "哑铃", "", now, now),
+            ExerciseEntity("builtin_machine_chest_fly", "器械夹胸", "胸部", "夹胸机", "", now, now),
+            ExerciseEntity("builtin_cable_fly", "绳索夹胸", "胸部", "绳索器", "", now, now),
+            ExerciseEntity("builtin_seated_cable_row", "坐姿绳索划船", "背部", "绳索器", "", now, now),
+            ExerciseEntity("builtin_chest_supported_row", "胸托划船", "背部", "器械", "", now, now),
+            ExerciseEntity("builtin_straight_arm_pulldown", "直臂下压", "背部", "绳索器", "", now, now),
+            ExerciseEntity("builtin_rdl", "罗马尼亚硬拉", "腿部", "杠铃", "", now, now),
+            ExerciseEntity("builtin_leg_press", "腿举", "腿部", "腿举机", "", now, now),
+            ExerciseEntity("builtin_leg_curl", "腿弯举", "腿部", "腿弯举机", "", now, now),
+            ExerciseEntity("builtin_calf_raise", "站姿提踵", "腿部", "提踵机", "", now, now),
+            ExerciseEntity("builtin_alt_db_curl", "交替哑铃弯举", "手臂", "哑铃", "", now, now),
+            ExerciseEntity("builtin_cable_curl", "绳索弯举", "手臂", "绳索器", "", now, now),
+            ExerciseEntity("builtin_triceps_pushdown", "绳索下压", "手臂", "绳索器", "", now, now),
+            ExerciseEntity("builtin_overhead_triceps", "过顶绳索臂屈伸", "手臂", "绳索器", "", now, now)
+        )
+        exerciseDefinitions.forEach { if (exerciseDao.getById(it.id) == null) exerciseDao.insert(it) }
+        val definitions = listOf(
+            Triple("肩部训练", "肩部", "肩推与侧平举为主，兼顾后三角肌。") to listOf(
+                PlanActionInput("builtin_db_shoulder_press", "坐姿哑铃推举", "肩部", "哑铃", targetSets = 3, targetReps = "8-10"),
+                PlanActionInput("builtin_db_lateral_raise", "哑铃侧平举", "肩部", "哑铃", targetSets = 3, targetReps = "12-15"),
+                PlanActionInput("builtin_cable_lateral_raise", "绳索侧平举", "肩部", "绳索器", targetSets = 2, targetReps = "12-15"),
+                PlanActionInput("builtin_reverse_pec_deck", "反向蝴蝶机飞鸟", "肩部", "蝴蝶机", targetSets = 3, targetReps = "12-15")
+            ),
+            Triple("胸部训练", "胸部", "以推举为主，搭配夹胸动作。") to listOf(
+                PlanActionInput("builtin_bench_press", "卧推", "胸部", "杠铃", targetSets = 3, targetReps = "6-8"),
+                PlanActionInput("builtin_incline_db_press", "上斜哑铃卧推", "胸部", "哑铃", targetSets = 3, targetReps = "8-12"),
+                PlanActionInput("builtin_machine_chest_fly", "器械夹胸", "胸部", "夹胸机", targetSets = 3, targetReps = "10-15"),
+                PlanActionInput("builtin_cable_fly", "绳索夹胸", "胸部", "绳索器", targetSets = 2, targetReps = "12-15")
+            ),
+            Triple("背部训练", "背部", "垂直拉与水平拉结合，兼顾背阔肌和上背。") to listOf(
+                PlanActionInput("builtin_lat_pulldown", "高位下拉", "背部", "高位下拉器", targetSets = 3, targetReps = "8-12"),
+                PlanActionInput("builtin_seated_cable_row", "坐姿绳索划船", "背部", "绳索器", targetSets = 3, targetReps = "8-12"),
+                PlanActionInput("builtin_chest_supported_row", "胸托划船", "背部", "器械", targetSets = 3, targetReps = "10-12"),
+                PlanActionInput("builtin_straight_arm_pulldown", "直臂下压", "背部", "绳索器", targetSets = 2, targetReps = "12-15")
+            ),
+            Triple("腿部训练", "腿部", "深蹲、髋铰链与腿部辅助动作组合。") to listOf(
+                PlanActionInput("builtin_squat", "深蹲", "腿部", "杠铃", targetSets = 3, targetReps = "6-8"),
+                PlanActionInput("builtin_rdl", "罗马尼亚硬拉", "腿部", "杠铃", targetSets = 3, targetReps = "8-10"),
+                PlanActionInput("builtin_leg_press", "腿举", "腿部", "腿举机", targetSets = 3, targetReps = "10-15"),
+                PlanActionInput("builtin_leg_curl", "腿弯举", "腿部", "腿弯举机", targetSets = 2, targetReps = "10-15"),
+                PlanActionInput("builtin_calf_raise", "站姿提踵", "腿部", "提踵机", targetSets = 3, targetReps = "12-15")
+            ),
+            Triple("手臂训练", "手臂", "肱二头肌与肱三头肌分别安排动作。") to listOf(
+                PlanActionInput("builtin_alt_db_curl", "交替哑铃弯举", "手臂", "哑铃", targetSets = 3, targetReps = "10-12"),
+                PlanActionInput("builtin_cable_curl", "绳索弯举", "手臂", "绳索器", targetSets = 2, targetReps = "12-15"),
+                PlanActionInput("builtin_triceps_pushdown", "绳索下压", "手臂", "绳索器", targetSets = 3, targetReps = "10-12"),
+                PlanActionInput("builtin_overhead_triceps", "过顶绳索臂屈伸", "手臂", "绳索器", targetSets = 2, targetReps = "12-15")
+            )
+        )
+        definitions.forEachIndexed { index, (info, actions) ->
+            val templateId = "builtin_workout_template_$index"
+            if (workoutTemplateDao.getById(templateId) == null) {
+                workoutTemplateDao.insert(WorkoutTemplateEntity(templateId, info.first, info.second, info.third, now, now))
+                val rows = actions.mapIndexed { actionIndex, action ->
+                    WorkoutPlanExerciseEntity(
+                        UUID.randomUUID().toString(), "WORKOUT_TEMPLATE", templateId, action.exerciseId,
+                        action.name, action.category, action.equipment, action.notes, actionIndex,
+                        action.targetSets, action.targetReps, action.targetWeight
+                    )
+                }
+                planExerciseDao.insertAll(rows)
+            }
+        }
+        database.appMetadataDao().put(AppMetadataEntity(seedKey, "true"))
     }
 
     fun observeWeeklyPlan(date: LocalDate): Flow<List<WeeklyWorkoutPlanDayEntity>> =
@@ -205,27 +341,12 @@ class TrainingPlanRepository(
         dailyDao.updateStatus(id, date.toString(), status.name, clock.millis()) > 0
 
     suspend fun getPlanExercises(ownerType: String, ownerId: String): List<WorkoutPlanExerciseEntity> {
-        require(ownerType == "WEEKLY_DAY" || ownerType == "DAILY_PLAN")
+        require(ownerType == "WEEKLY_DAY" || ownerType == "DAILY_PLAN" || ownerType == "WORKOUT_TEMPLATE")
         return planExerciseDao.getForOwner(ownerType, ownerId)
     }
 
-    /** Explicitly replaces one dated plan's actions with the current weekly template actions. */
-    suspend fun importWeeklyActions(date: LocalDate, dailyPlanId: String) {
-        database.withTransaction {
-            val dailyPlan = dailyDao.getById(dailyPlanId) ?: error("当天训练安排不存在")
-            require(dailyPlan.businessDate == date.toString()) { "训练日期不匹配" }
-            val version = weeklyDao.getVersionForDate(date.toString()) ?: error("没有可用的每周训练模板")
-            val day = weeklyDao.getDay(version.id, date.dayOfWeek.value) ?: error("每周模板缺少当天配置")
-            val copied = planExerciseDao.getForOwner("WEEKLY_DAY", day.id).map { action ->
-                action.copy(id = UUID.randomUUID().toString(), ownerType = "DAILY_PLAN", ownerId = dailyPlanId)
-            }
-            planExerciseDao.deleteForOwner("DAILY_PLAN", dailyPlanId)
-            if (copied.isNotEmpty()) planExerciseDao.insertAll(copied)
-        }
-    }
-
     suspend fun savePlanExercises(ownerType: String, ownerId: String, actions: List<PlanActionInput>) {
-        require(ownerType == "WEEKLY_DAY" || ownerType == "DAILY_PLAN")
+        require(ownerType == "WEEKLY_DAY" || ownerType == "DAILY_PLAN" || ownerType == "WORKOUT_TEMPLATE")
         require(actions.all {
             it.name.isNotBlank() && it.targetSets in 1..30 &&
                 runCatching { WorkoutInputRules.parseTargetReps(it.targetReps) }.isSuccess &&

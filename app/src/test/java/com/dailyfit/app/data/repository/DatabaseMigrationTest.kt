@@ -16,7 +16,7 @@ import org.robolectric.annotation.Config
 @Config(sdk = [35])
 class DatabaseMigrationTest {
     @Test
-    fun migrationFromVersionFourToSixPreservesExistingDataAndInstallsHistoryGuards() = runBlocking {
+    fun migrationFromVersionFourToSevenPreservesExistingDataAndInstallsHistoryGuards() = runBlocking {
         val context = RuntimeEnvironment.getApplication()
         val name = "dailyfit-v4-to-v6-migration-test.db"
         context.deleteDatabase(name)
@@ -57,7 +57,7 @@ class DatabaseMigrationTest {
         old.close()
 
         val migrated = Room.databaseBuilder(context, DailyFitDatabase::class.java, name)
-            .addMigrations(DailyFitDatabase.MIGRATION_4_5, DailyFitDatabase.MIGRATION_5_6)
+            .addMigrations(DailyFitDatabase.MIGRATION_4_5, DailyFitDatabase.MIGRATION_5_6, DailyFitDatabase.MIGRATION_6_7)
             .build()
         try {
             assertEquals("preserved", migrated.appMetadataDao().getValue("migration-check"))
@@ -68,6 +68,7 @@ class DatabaseMigrationTest {
             assertEquals("上肢训练", migrated.dailyWorkoutPlanDao().getById("plan-1")?.title)
             assertEquals("卧推", migrated.exerciseDao().getById("exercise-1")?.name)
             assertTrue(migrated.workoutPlanExerciseDao().getForOwner("DAILY_PLAN", "plan-1").isEmpty())
+            assertTrue(migrated.workoutTemplateDao().observeAll().first().isEmpty())
 
             val triggers = migrated.openHelper.readableDatabase.query(
                 "SELECT COUNT(*) FROM sqlite_master WHERE type='trigger' AND name LIKE 'immutable_workout_history%'"

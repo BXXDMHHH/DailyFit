@@ -11,6 +11,8 @@ import androidx.lifecycle.viewModelScope
 import com.dailyfit.app.data.local.DailyWorkoutPlanEntity
 import com.dailyfit.app.data.local.ExerciseEntity
 import com.dailyfit.app.data.local.WeeklyWorkoutPlanDayEntity
+import com.dailyfit.app.data.local.WorkoutTemplateEntity
+import com.dailyfit.app.data.local.WorkoutPlanExerciseEntity
 import com.dailyfit.app.data.repository.PlanActionInput
 import com.dailyfit.app.data.repository.TrainingPlanRepository
 import com.dailyfit.app.data.repository.WeeklyPlanInput
@@ -41,6 +43,8 @@ data class PlanUiState(
     val weeklyDays: List<WeeklyWorkoutPlanDayEntity> = emptyList(),
     val dailyPlans: List<DailyWorkoutPlanEntity> = emptyList(),
     val exercises: List<ExerciseEntity> = emptyList(),
+    val workoutTemplates: List<WorkoutTemplateEntity> = emptyList(),
+    val workoutTemplateExercises: List<WorkoutPlanExerciseEntity> = emptyList(),
     val exerciseQuery: String = "",
     val editingActionOwnerType: String? = null,
     val editingActionOwnerId: String? = null,
@@ -69,14 +73,18 @@ class PlanViewModel(
                 combine(
                     repository.observeWeeklyPlan(date),
                     repository.observeDailyPlans(date),
-                    exerciseQuery.flatMapLatest(repository::observeExercises)
-                ) { weekly, daily, exercises ->
+                    exerciseQuery.flatMapLatest(repository::observeExercises),
+                    repository.observeWorkoutTemplates(),
+                    repository.observeWorkoutTemplateExercises()
+                ) { weekly, daily, exercises, templates, templateExercises ->
                     PlanUiState(
                         isLoading = false,
                         selectedDate = date,
                         weeklyDays = weekly,
                         dailyPlans = daily,
                         exercises = exercises,
+                        workoutTemplates = templates,
+                        workoutTemplateExercises = templateExercises,
                         exerciseQuery = exerciseQuery.value
                     )
                 }
@@ -151,6 +159,38 @@ class PlanViewModel(
         viewModelScope.launch { runCatching { repository.setStatus(selectedDate.value, id, status) }.onFailure { showError(it) } }
     }
 
+    fun saveWorkoutTemplate(id: String?, name: String, category: String, description: String) {
+        viewModelScope.launch {
+            runCatching { repository.saveWorkoutTemplate(id, name, category, description) }
+                .onSuccess { _uiState.value = _uiState.value.copy(message = if (id == null) "训练模板已创建，请为它配置动作" else "训练模板信息已更新") }
+                .onFailure { showError(it) }
+        }
+    }
+
+    fun deleteWorkoutTemplate(id: String) {
+        viewModelScope.launch {
+            runCatching { repository.deleteWorkoutTemplate(id) }
+                .onSuccess { _uiState.value = _uiState.value.copy(message = "训练模板已删除") }
+                .onFailure { showError(it) }
+        }
+    }
+
+    fun importWorkoutTemplateForSelectedDate(templateId: String) {
+        val state = _uiState.value
+        val primary = state.dailyPlans.firstOrNull { it.isPrimary }
+        if (primary == null) {
+            showError(IllegalStateException("当天暂无主要训练安排"))
+            return
+        }
+        viewModelScope.launch {
+            runCatching { repository.importWorkoutTemplate(state.selectedDate, primary.id, templateId) }
+                .onSuccess {
+                    val templateName = state.workoutTemplates.firstOrNull { it.id == templateId }?.name ?: "训练模板"
+                    _uiState.value = _uiState.value.copy(message = "已将「$templateName」完整导入${state.selectedDate}，可以返回首页开始训练")
+                }
+                .onFailure { showError(it) }
+        }
+    }
     fun saveExercise(id: String?, name: String, category: String, equipment: String, notes: String) {
         viewModelScope.launch {
             runCatching { repository.saveExercise(id, name, category, equipment, notes) }.onFailure { showError(it) }
@@ -204,47 +244,6 @@ class PlanViewModel(
 
     fun removeAction(index: Int) {
         _uiState.value = _uiState.value.copy(planActions = _uiState.value.planActions.filterIndexed { i, _ -> i != index })
-    }
-
-    /** One-tap import from the weekly template into the selected day's primary workout. */
-    fun importWeeklyActionsForSelectedDate() {
-        val state = _uiState.value
-        val date = state.selectedDate
-        val primary = state.dailyPlans.firstOrNull { it.isPrimary }
-        if (primary == null) {
-            showError(IllegalStateException("当天暂无主要训练安排"))
-            return
-        }
-        viewModelScope.launch {
-            runCatching { repository.importWeeklyActions(date, primary.id) }
-                .onSuccess {
-                    _uiState.value = _uiState.value.copy(message = "已将本周模板动作导入当天训练")
-                }
-                .onFailure { showError(it) }
-        }
-    }
-
-    fun importWeeklyActionsIntoDailyPlan() {
-        val state = _uiState.value
-        val ownerId = state.editingActionOwnerId ?: return
-        if (state.editingActionOwnerType != "DAILY_PLAN") return
-        viewModelScope.launch {
-            runCatching {
-                repository.importWeeklyActions(state.selectedDate, ownerId)
-                repository.getPlanExercises("DAILY_PLAN", ownerId)
-            }.onSuccess { rows ->
-                _uiState.value = _uiState.value.copy(
-                    planActions = rows.map {
-                        PlanActionDraft(
-                            it.exerciseId, it.exerciseNameSnapshot, it.categorySnapshot,
-                            it.equipmentSnapshot, it.notesSnapshot, it.targetSets.toString(),
-                            it.targetReps, it.targetWeight.toString()
-                        )
-                    },
-                    message = null
-                )
-            }.onFailure { showError(it) }
-        }
     }
 
     fun saveActionEditor() {

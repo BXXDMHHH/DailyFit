@@ -110,6 +110,9 @@ interface WorkoutPlanExerciseDao {
     @Query("SELECT * FROM workout_plan_exercises WHERE ownerType = :ownerType AND ownerId = :ownerId ORDER BY sortOrder")
     suspend fun getForOwner(ownerType: String, ownerId: String): List<WorkoutPlanExerciseEntity>
 
+    @Query("SELECT * FROM workout_plan_exercises WHERE ownerType = :ownerType ORDER BY ownerId, sortOrder")
+    fun observeForOwnerType(ownerType: String): Flow<List<WorkoutPlanExerciseEntity>>
+
     @Query("DELETE FROM workout_plan_exercises WHERE ownerType = :ownerType AND ownerId = :ownerId")
     suspend fun deleteForOwner(ownerType: String, ownerId: String): Int
 

@@ -150,6 +150,49 @@ class TrainingPlanRepositoryTest {
     }
 
     @Test
+    fun seedsCompleteWorkoutTemplatesAndImportsAnIndependentDailyCopy() = runBlocking {
+        repository.ensureInitialTemplate()
+        val templates = repository.observeWorkoutTemplates().first()
+        assertEquals(5, templates.size)
+        val shoulder = templates.first { it.name == "肩部训练" }
+        val templateActions = repository.getPlanExercises("WORKOUT_TEMPLATE", shoulder.id)
+        assertEquals(4, templateActions.size)
+        assertEquals(listOf(3, 3, 2, 3), templateActions.map { it.targetSets })
+
+        repository.ensureDailyPrimary(today)
+        val daily = repository.observeDailyPlans(today).first().single()
+        repository.importWorkoutTemplate(today, daily.id, shoulder.id)
+
+        val imported = repository.getPlanExercises("DAILY_PLAN", daily.id)
+        assertEquals("肩部训练", repository.observeDailyPlans(today).first().single().title)
+        assertEquals(templateActions.map { it.exerciseNameSnapshot }, imported.map { it.exerciseNameSnapshot })
+        assertTrue(imported.all { it.ownerType == "DAILY_PLAN" })
+
+        repository.saveWorkoutTemplate(shoulder.id, "肩部训练（修改版）", "肩部", "只影响后续导入")
+        repository.savePlanExercises(
+            "WORKOUT_TEMPLATE",
+            shoulder.id,
+            listOf(PlanActionInput(null, "新侧平举", targetSets = 2, targetReps = "15-20"))
+        )
+        assertEquals(4, repository.getPlanExercises("DAILY_PLAN", daily.id).size)
+        assertEquals("肩部训练", repository.observeDailyPlans(today).first().single().title)
+        assertEquals("肩部训练（修改版）", repository.observeWorkoutTemplates().first().first { it.id == shoulder.id }.name)
+    }
+
+    @Test
+    fun deletingWorkoutTemplateDoesNotDeleteImportedDailySnapshot() = runBlocking {
+        repository.ensureInitialTemplate()
+        repository.ensureDailyPrimary(today)
+        val template = repository.observeWorkoutTemplates().first().first()
+        val daily = repository.observeDailyPlans(today).first().single()
+        repository.importWorkoutTemplate(today, daily.id, template.id)
+
+        assertTrue(repository.deleteWorkoutTemplate(template.id))
+        assertTrue(repository.getPlanExercises("WORKOUT_TEMPLATE", template.id).isEmpty())
+        assertEquals(4, repository.getPlanExercises("DAILY_PLAN", daily.id).size)
+    }
+
+    @Test
     fun deletingExtraPlanWithAnotherDateCannotDeleteItsActionSnapshot() = runBlocking {
         repository.ensureInitialTemplate()
         val extraId = repository.addExtra(today, "晚间跑步")
@@ -199,7 +242,8 @@ class TrainingPlanRepositoryTest {
                 DailyFitDatabase.MIGRATION_2_3,
                 DailyFitDatabase.MIGRATION_3_4,
                 DailyFitDatabase.MIGRATION_4_5,
-                DailyFitDatabase.MIGRATION_5_6
+                DailyFitDatabase.MIGRATION_5_6,
+                DailyFitDatabase.MIGRATION_6_7
             )
             .build()
         try {

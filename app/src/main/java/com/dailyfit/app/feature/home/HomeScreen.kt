@@ -149,7 +149,7 @@ fun HomeScreen(
                     if (isWorkoutPlansLoading) {
                         CircularProgressIndicator()
                     } else if (todayWorkoutPlans.isEmpty()) {
-                        Text("先设置每周训练动作，再一键导入到今天。", color = MaterialTheme.colorScheme.onSecondaryContainer)
+                        Text("先到计划页选择一套完整训练计划，导入今天后即可开始。", color = MaterialTheme.colorScheme.onSecondaryContainer)
                     } else {
                         todayWorkoutPlans.forEach { plan ->
                             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -167,7 +167,7 @@ fun HomeScreen(
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                         Button(onClick = onStartWorkout) { Text("开始今日训练") }
-                        TextButton(onClick = onOpenTrainingPlan) { Text("设置动作 / 导入") }
+                        TextButton(onClick = onOpenTrainingPlan) { Text("选择训练计划") }
                     }
                 }
             }
