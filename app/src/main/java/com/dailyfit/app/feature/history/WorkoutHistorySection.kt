@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -52,7 +53,11 @@ fun WorkoutHistorySection(database: DailyFitDatabase, modifier: Modifier = Modif
             Text("训练历史", style = MaterialTheme.typography.titleLarge)
         }
         item {
-            Card(Modifier.fillMaxWidth()) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            ) {
                 Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text("训练次数：${stats.totalSessions} 次（已完成 ${stats.completedSessions} 次）")
                     Text("完成训练组数：${stats.completedSets} 组")
@@ -64,7 +69,11 @@ fun WorkoutHistorySection(database: DailyFitDatabase, modifier: Modifier = Modif
             item { Text("还没有正式训练记录", color = MaterialTheme.colorScheme.onSurfaceVariant) }
         }
         items(rows, key = { it.id }) { row ->
-            Card(Modifier.fillMaxWidth()) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            ) {
                 TextButton(
                     modifier = Modifier.fillMaxWidth(),
                     onClick = {

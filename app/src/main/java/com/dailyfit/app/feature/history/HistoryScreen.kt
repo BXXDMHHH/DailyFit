@@ -15,6 +15,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -97,7 +98,11 @@ fun HistoryScreen(
             }
         }
         item {
-            Card(Modifier.fillMaxWidth()) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            ) {
                 Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text("固定习惯", style = MaterialTheme.typography.titleMedium)
                     if (state.isLoading) {
@@ -112,7 +117,11 @@ fun HistoryScreen(
             }
         }
         item {
-            Card(Modifier.fillMaxWidth()) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            ) {
                 Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text("临时任务（独立统计）", style = MaterialTheme.typography.titleMedium)
                     if (state.isLoading) {
@@ -126,7 +135,11 @@ fun HistoryScreen(
             }
         }
         item {
-            Card(Modifier.fillMaxWidth()) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            ) {
                 Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text("训练统计", style = MaterialTheme.typography.titleMedium)
                     if (!historyLoaded || !statsLoaded) {
@@ -166,7 +179,8 @@ fun HistoryScreen(
             item { Text("还没有正式训练记录。", color = MaterialTheme.colorScheme.onSurfaceVariant) }
         }
         items(rows, key = { it.id }) { row ->
-            Card(Modifier.fillMaxWidth().clickable {
+            Card(
+                modifier = Modifier.fillMaxWidth().clickable {
                 scope.launch {
                     selected = row
                     details = emptyList()
@@ -179,7 +193,10 @@ fun HistoryScreen(
                         .onFailure { detailsError = it.message ?: "训练详情加载失败" }
                     detailsLoading = false
                 }
-            }) {
+            },
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            ) {
                 Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(row.titleSnapshot, style = MaterialTheme.typography.titleMedium)
                     Text(
@@ -225,7 +242,11 @@ fun HistoryScreen(
 
 @Composable
 private fun HabitHistoryRow(record: HabitRecordEntity) {
-    Card(Modifier.fillMaxWidth()) {
+    Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            ) {
         Row(
             Modifier.fillMaxWidth().padding(14.dp),
             verticalAlignment = Alignment.CenterVertically
