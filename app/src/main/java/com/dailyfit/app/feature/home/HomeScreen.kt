@@ -109,7 +109,10 @@ fun HomeScreen(
                                 Text("今天的习惯都完成啦。", color = MaterialTheme.colorScheme.onSurfaceVariant)
                             } else {
                                 pendingHabits.forEach { item ->
-                                    HabitRow(item = item, onChecked = { viewModel.setCompleted(item.record.id, it) })
+                                    HabitRow(item = item, onChecked = { checked ->
+                                        if (checked) showCompletedHabits = false
+                                        viewModel.setCompleted(item.record.id, checked)
+                                    })
                                 }
                             }
                             if (completedHabits.isNotEmpty()) {
