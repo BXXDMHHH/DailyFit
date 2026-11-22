@@ -8,7 +8,6 @@ import androidx.compose.material3.Shapes
 import androidx.compose.material3.Typography
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -81,14 +80,15 @@ private val DailyFitShapes = Shapes(
     extraLarge = RoundedCornerShape(30.dp)
 )
 
-private val DailyFitTypography = Typography(
-    headlineLarge = TextStyle(fontWeight = FontWeight.Bold),
-    headlineMedium = TextStyle(fontWeight = FontWeight.SemiBold),
-    headlineSmall = TextStyle(fontWeight = FontWeight.SemiBold),
-    titleLarge = TextStyle(fontWeight = FontWeight.SemiBold),
-    titleMedium = TextStyle(fontWeight = FontWeight.SemiBold),
-    titleSmall = TextStyle(fontWeight = FontWeight.Medium),
-    labelLarge = TextStyle(fontWeight = FontWeight.SemiBold)
+private val BaseTypography = Typography()
+private val DailyFitTypography = BaseTypography.copy(
+    headlineLarge = BaseTypography.headlineLarge.copy(fontWeight = FontWeight.Bold),
+    headlineMedium = BaseTypography.headlineMedium.copy(fontWeight = FontWeight.SemiBold),
+    headlineSmall = BaseTypography.headlineSmall.copy(fontWeight = FontWeight.SemiBold),
+    titleLarge = BaseTypography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
+    titleMedium = BaseTypography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+    titleSmall = BaseTypography.titleSmall.copy(fontWeight = FontWeight.Medium),
+    labelLarge = BaseTypography.labelLarge.copy(fontWeight = FontWeight.SemiBold)
 )
 
 @Composable
