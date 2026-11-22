@@ -115,10 +115,11 @@ class TrainingPlanRepository(
             val dailyPlan = dailyDao.getById(dailyPlanId) ?: error("当天训练安排不存在")
             require(dailyPlan.businessDate == date.toString() && dailyPlan.isPrimary) { "只能导入到所选日期的主要训练" }
             require(dailyPlan.status == WorkoutPlanStatus.PLANNED.name) { "训练已完成或跳过，不能替换训练计划" }
+            require(database.workoutSessionDao().getActive() == null) { "请先结束或恢复当前训练，再更换训练计划" }
             val template = workoutTemplateDao.getById(templateId) ?: error("训练模板不存在")
             val actions = planExerciseDao.getForOwner("WORKOUT_TEMPLATE", templateId)
             require(actions.isNotEmpty()) { "这个训练模板还没有配置动作" }
-            dailyDao.updatePrimary(dailyPlanId, date.toString(), template.name, template.description, clock.millis())
+            check(dailyDao.updatePrimary(dailyPlanId, date.toString(), template.name, template.description, clock.millis()) == 1) { "当天训练安排已变化，请刷新后重试" }
             planExerciseDao.deleteForOwner("DAILY_PLAN", dailyPlanId)
             val copied = actions.map { action ->
                 action.copy(id = UUID.randomUUID().toString(), ownerType = "DAILY_PLAN", ownerId = dailyPlanId)
