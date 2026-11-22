@@ -218,8 +218,11 @@ fun WorkoutScreen(
             },
             confirmButton = {
                 TextButton(onClick = {
-                    incrementExerciseId?.let { id -> incrementInput.toDoubleOrNull()?.let { viewModel.setWeightIncrement(id, it) } }
-                    incrementExerciseId = null
+                    val value = incrementInput.toDoubleOrNull()
+                    if (value != null && value.isFinite() && value > 0) {
+                        incrementExerciseId?.let { id -> viewModel.setWeightIncrement(id, value) }
+                        incrementExerciseId = null
+                    }
                 }) { Text("保存") }
             },
             dismissButton = { TextButton(onClick = { incrementExerciseId = null }) { Text("取消") } }
