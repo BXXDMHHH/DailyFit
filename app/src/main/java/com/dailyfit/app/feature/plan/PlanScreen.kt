@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dailyfit.app.data.local.DailyWorkoutPlanEntity
 import com.dailyfit.app.data.local.ExerciseEntity
+import com.dailyfit.app.data.local.WorkoutTemplateEntity
 import com.dailyfit.app.data.repository.WeeklyPlanInput
 import com.dailyfit.app.data.repository.WorkoutPlanStatus
 import com.dailyfit.app.feature.habits.HabitViewModel
@@ -51,6 +52,9 @@ fun PlanScreen(viewModel: PlanViewModel, habitViewModel: HabitViewModel, modifie
     var showExerciseEditor by remember { mutableStateOf(false) }
     var deletingExercise by remember { mutableStateOf<ExerciseEntity?>(null) }
     var editingExtra by remember { mutableStateOf<DailyWorkoutPlanEntity?>(null) }
+    var editingTemplate by remember { mutableStateOf<WorkoutTemplateEntity?>(null) }
+    var deletingTemplate by remember { mutableStateOf<WorkoutTemplateEntity?>(null) }
+    var showTemplateEditor by remember { mutableStateOf(false) }
     var dateText by remember { mutableStateOf(state.selectedDate.toString()) }
 
     LazyColumn(
@@ -64,6 +68,54 @@ fun PlanScreen(viewModel: PlanViewModel, habitViewModel: HabitViewModel, modifie
             }
         }
         item { HabitManagementSection(state = habitState, viewModel = habitViewModel) }
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            ) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text("完整训练计划库", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                            Text("每个计划都包含整套动作和目标组数、次数。选择后一次性导入当天。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                        }
+                        Button(onClick = { editingTemplate = null; showTemplateEditor = true }) { Text("新建") }
+                    }
+                    if (state.workoutTemplates.isEmpty()) {
+                        Text("暂无训练计划，点击新建创建一套。", color = MaterialTheme.colorScheme.onPrimaryContainer)
+                    }
+                    state.workoutTemplates.forEach { template ->
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                        ) {
+                            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Column(Modifier.weight(1f)) {
+                                        Text(template.name, style = MaterialTheme.typography.titleMedium)
+                                        Text(template.category, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                                    }
+                                    TextButton(onClick = { editingTemplate = template; showTemplateEditor = true }) { Text("信息") }
+                                    TextButton(onClick = { viewModel.openActionEditor("WORKOUT_TEMPLATE", template.id) }) { Text("编辑动作") }
+                                }
+                                if (template.description.isNotBlank()) {
+                                    Text(template.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Button(
+                                        onClick = { viewModel.importWorkoutTemplateForSelectedDate(template.id) },
+                                        enabled = !state.isLoading && state.dailyPlans.any { it.isPrimary && it.status == "PLANNED" }
+                                    ) { Text("导入${state.selectedDate}") }
+                                    TextButton(onClick = { deletingTemplate = template }) { Text("删除") }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
         if (state.isLoading) {
             item {
                 androidx.compose.foundation.layout.Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
@@ -117,29 +169,7 @@ fun PlanScreen(viewModel: PlanViewModel, habitViewModel: HabitViewModel, modifie
                         modifier = Modifier.fillMaxWidth()
                     )
                     Text("只修改所选日期，不会改变每周固定模板。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-                    ) {
-                        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Text("训练动作导入", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
-                            Text(
-                                "先在上方「每周固定计划 → 设置动作」配置常用动作，再一键复制到所选日期。",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
-                            Text(
-                                "注意：导入会覆盖当天主要训练现有动作，不影响每周模板。",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
-                            Button(
-                                onClick = viewModel::importWeeklyActionsForSelectedDate,
-                                enabled = !state.isLoading && state.dailyPlans.any { it.isPrimary }
-                            ) { Text("一键导入本周模板动作") }
-                        }
-                    }
+
                     if (!state.isLoading && state.dailyPlans.isEmpty()) {
                         Text("所选日期暂无训练安排。", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
@@ -191,6 +221,27 @@ fun PlanScreen(viewModel: PlanViewModel, habitViewModel: HabitViewModel, modifie
         }
     }
 
+    if (showTemplateEditor) {
+        WorkoutTemplateEditor(
+            initial = editingTemplate,
+            onDismiss = { showTemplateEditor = false },
+            onSave = { id, name, category, description ->
+                viewModel.saveWorkoutTemplate(id, name, category, description)
+                showTemplateEditor = false
+            }
+        )
+    }
+    deletingTemplate?.let { template ->
+        AlertDialog(
+            onDismissRequest = { deletingTemplate = null },
+            title = { Text("删除训练计划？") },
+            text = { Text("只删除计划库中的模板，不会影响已经导入到某一天的训练副本，也不会影响训练历史。") },
+            confirmButton = {
+                TextButton(onClick = { viewModel.deleteWorkoutTemplate(template.id); deletingTemplate = null }) { Text("删除") }
+            },
+            dismissButton = { TextButton(onClick = { deletingTemplate = null }) { Text("取消") } }
+        )
+    }
     if (showWeeklyEditor) {
         WeeklyPlanEditor(
             initial = state.weeklyDays,
@@ -243,7 +294,7 @@ fun PlanScreen(viewModel: PlanViewModel, habitViewModel: HabitViewModel, modifie
         )
     }
     if (state.editingActionOwnerType != null) {
-        val ownerLabel = if (state.editingActionOwnerType == "WEEKLY_DAY") "每周模板动作" else "当天计划动作"
+        val ownerLabel = when (state.editingActionOwnerType) { "WEEKLY_DAY" -> "每周计划日动作（兼容旧数据）"; "WORKOUT_TEMPLATE" -> "完整训练计划动作"; else -> "当天计划动作微调" }
         AlertDialog(
             onDismissRequest = viewModel::closeActionEditor,
             title = { Text(ownerLabel) },
@@ -252,13 +303,6 @@ fun PlanScreen(viewModel: PlanViewModel, habitViewModel: HabitViewModel, modifie
                     modifier = Modifier.heightIn(max = 420.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    if (state.editingActionOwnerType == "DAILY_PLAN") {
-                        item {
-                            TextButton(onClick = viewModel::importWeeklyActionsIntoDailyPlan) {
-                                Text("从每周模板覆盖当天动作")
-                            }
-                        }
-                    }
                     item { Text("已配置动作（目标数据可分别调整）", style = MaterialTheme.typography.titleSmall) }
                     itemsIndexed(state.planActions) { index, action ->
                         Card(
@@ -322,6 +366,33 @@ fun PlanScreen(viewModel: PlanViewModel, habitViewModel: HabitViewModel, modifie
             confirmButton = { TextButton(onClick = viewModel::consumeMessage) { Text("知道了") } }
         )
     }
+}
+
+@Composable
+private fun WorkoutTemplateEditor(
+    initial: WorkoutTemplateEntity?,
+    onDismiss: () -> Unit,
+    onSave: (String?, String, String, String) -> Unit
+) {
+    var name by remember(initial) { mutableStateOf(initial?.name.orEmpty()) }
+    var category by remember(initial) { mutableStateOf(initial?.category.orEmpty()) }
+    var description by remember(initial) { mutableStateOf(initial?.description.orEmpty()) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(if (initial == null) "新建完整训练计划" else "编辑训练计划信息") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(name, { name = it }, label = { Text("计划名称") }, singleLine = true)
+                OutlinedTextField(category, { category = it }, label = { Text("训练部位 / 类型") }, singleLine = true)
+                OutlinedTextField(description, { description = it }, label = { Text("说明") })
+                if (initial == null) Text("创建后，在计划卡片中点击「编辑动作」添加整套动作。", style = MaterialTheme.typography.bodySmall)
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onSave(initial?.id, name, category, description) }, enabled = name.isNotBlank()) { Text("保存") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } }
+    )
 }
 
 @Composable
