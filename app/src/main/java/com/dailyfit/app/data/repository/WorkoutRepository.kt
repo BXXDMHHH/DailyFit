@@ -20,7 +20,7 @@ class WorkoutRepository(private val db:DailyFitDatabase, private val clock:Clock
   val key = progressKey(exercise)
   val metadata = db.appMetadataDao()
   return ExerciseProgress(
-   lastWeight = dao.lastCompletedWeight(exercise.exerciseNameSnapshot),
+   lastWeight = dao.lastCompletedWeight(exercise.exerciseId, exercise.exerciseNameSnapshot),
    incrementKg = metadata.getValue("${key}:increment")?.toDoubleOrNull()?.takeIf { it.isFinite() && it > 0 } ?: 2.5,
    bestActualOneRepMax = metadata.getValue("${key}:actual_1rm")?.toDoubleOrNull(),
    bestEstimatedOneRepMax = metadata.getValue("${key}:estimated_1rm")?.toDoubleOrNull()
