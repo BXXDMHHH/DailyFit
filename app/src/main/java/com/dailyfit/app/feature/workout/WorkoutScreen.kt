@@ -96,8 +96,9 @@ fun WorkoutScreen(
                 item { Text("计划没有配置动作，可以从动作库添加，或添加临时动作。") }
             }
             items(state.exercises, key = { it.row.id }) { exercise ->
-                val initialWeight = exercise.progress.lastWeight
+                val initialWeight = exercise.sets.lastOrNull { !it.isCompleted && it.actualWeight != null }?.actualWeight
                     ?: exercise.sets.firstOrNull { it.actualWeight != null }?.actualWeight
+                    ?: exercise.progress.lastWeight
                     ?: exercise.row.targetWeight
                 var workingWeight by remember(exercise.row.id, exercise.progress.lastWeight) {
                     mutableStateOf(initialWeight.coerceAtLeast(0.0))
