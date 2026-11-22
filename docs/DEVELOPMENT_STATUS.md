@@ -61,7 +61,7 @@
 - CI 增加 Android lint；Robolectric 测试依赖改用 Maven Central 标准域名，避免 repo1 429 限流。
 - 最终 GitHub Actions Run 44973865703：Room Schema 生成成功、49 项单元/Room 集成测试通过（0 失败、0 错误、0 跳过）、Android lint 通过、Debug APK 构建和 artifact 上传成功。
 - Lint 剩余 8 条均为 Gradle/依赖版本更新提示，不是代码错误；本阶段未为消除提示而盲目升级依赖。
-- CI Run：[44973865703](https://github.com/BXXDMHHH/DailyFit/actions/runs/44973865703)；阶段 6 PR #3 待合并。
+- CI Run：[44973865703](https://github.com/BXXDMHHH/DailyFit/actions/runs/44973865703)；阶段 6 PR #3 已合并至 main（合并提交：9f597717dc5ef64b99e9619b8b780f381cf6b710）。
 - Debug APK artifact：dailyfit-debug-apk；测试报告与 Room schema artifact：test-reports-and-room-schemas。
 
 ## V1.0 发布遗留项
