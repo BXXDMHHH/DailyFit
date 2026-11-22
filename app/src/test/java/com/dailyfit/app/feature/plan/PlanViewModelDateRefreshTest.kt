@@ -11,9 +11,11 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -25,8 +27,9 @@ import org.robolectric.annotation.Config
 @Config(sdk = [35])
 class PlanViewModelDateRefreshTest {
     @Test
-    fun selectedCurrentDayAdvancesAfterMidnightButManualDateSelectionIsPreserved() = runBlocking {
-        Dispatchers.setMain(Dispatchers.Unconfined)
+    fun selectedCurrentDayAdvancesAfterMidnightButManualDateSelectionIsPreserved() = runTest {
+        val dispatcher = UnconfinedTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
         val context = RuntimeEnvironment.getApplication()
         val database = Room.inMemoryDatabaseBuilder(context, DailyFitDatabase::class.java)
             .allowMainThreadQueries()
@@ -44,25 +47,21 @@ class PlanViewModelDateRefreshTest {
                     PlanViewModel(repository, clock) as T
             }
             val viewModel = ViewModelProvider(store, factory)[PlanViewModel::class.java]
+            runCurrent()
             val firstDate = LocalDate.now(clock)
-            withTimeout(5_000) {
-                viewModel.uiState.first { it.selectedDate == firstDate && !it.isLoading }
-            }
+            assertEquals(firstDate, viewModel.uiState.value.selectedDate)
 
             clock.currentInstant = Instant.parse("2026-11-24T08:00:00Z")
             viewModel.refreshDate()
-            val nextDate = firstDate.plusDays(1)
-            withTimeout(5_000) {
-                viewModel.uiState.first { it.selectedDate == nextDate && !it.isLoading }
-            }
+            runCurrent()
+            assertEquals(firstDate.plusDays(1), viewModel.uiState.value.selectedDate)
 
             val manuallySelected = firstDate.minusDays(3)
             viewModel.selectDate(manuallySelected)
-            withTimeout(5_000) {
-                viewModel.uiState.first { it.selectedDate == manuallySelected && !it.isLoading }
-            }
+            runCurrent()
             clock.currentInstant = Instant.parse("2026-11-25T08:00:00Z")
             viewModel.refreshDate()
+            runCurrent()
             assertEquals(manuallySelected, viewModel.uiState.value.selectedDate)
         } finally {
             store.clear()
