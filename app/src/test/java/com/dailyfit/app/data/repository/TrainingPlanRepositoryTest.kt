@@ -53,6 +53,18 @@ class TrainingPlanRepositoryTest {
     }
 
     @Test
+    fun viewingDateBeforeFirstTemplateDoesNotCreateDuplicateCurrentTemplate() = runBlocking {
+        repository.ensureInitialTemplate()
+        val before = database.weeklyWorkoutPlanDao().getVersionForDate(today.toString())!!
+
+        repository.ensureDailyPrimary(today.minusDays(1))
+
+        val after = database.weeklyWorkoutPlanDao().getVersionForDate(today.toString())!!
+        assertEquals(before.id, after.id)
+        assertTrue(repository.observeDailyPlans(today.minusDays(1)).first().isEmpty())
+    }
+
+    @Test
     fun weeklyTemplateVersionOnlyAppliesFromEffectiveDateForward() = runBlocking {
         repository.ensureInitialTemplate()
         val oldMonday = repository.observeWeeklyPlan(today).first().first { it.dayOfWeek == 1 }

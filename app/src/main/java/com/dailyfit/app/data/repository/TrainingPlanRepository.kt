@@ -125,6 +125,9 @@ class TrainingPlanRepository(
         database.withTransaction {
             if (dailyDao.getPrimary(date.toString()) != null) return@withTransaction
             val version = weeklyDao.getVersionForDate(date.toString()) ?: run {
+                // Do not create a new current template when merely viewing a date
+                // earlier than the first saved template version.
+                if (date.isBefore(LocalDate.now(clock))) return@withTransaction
                 val initial = WeeklyWorkoutPlanVersionEntity(
                     id = UUID.randomUUID().toString(),
                     effectiveFromDate = LocalDate.now(clock).toString(),
