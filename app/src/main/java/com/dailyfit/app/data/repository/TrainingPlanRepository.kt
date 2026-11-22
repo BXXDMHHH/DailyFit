@@ -79,6 +79,7 @@ class TrainingPlanRepository(
     }
 
     fun observeWorkoutTemplates(): Flow<List<WorkoutTemplateEntity>> = workoutTemplateDao.observeAll()
+    fun observeWorkoutTemplateExercises(): Flow<List<WorkoutPlanExerciseEntity>> = planExerciseDao.observeForOwnerType("WORKOUT_TEMPLATE")
 
     suspend fun saveWorkoutTemplate(
         id: String?,
