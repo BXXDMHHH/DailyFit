@@ -55,14 +55,11 @@ private enum class MainDestination(val route: String, val label: String) {
 @Composable
 private fun DailyFitApp() {
     val navController = rememberNavController()
-    val activity = LocalContext.current as ComponentActivity
-    val app = activity.application as DailyFitApplication
+    val app = LocalContext.current.applicationContext as DailyFitApplication
     val habitViewModel: HabitViewModel = viewModel(
-        viewModelStoreOwner = activity,
         factory = HabitViewModelFactory(app.habitRepository, app.temporaryTaskRepository)
     )
     val planViewModel: PlanViewModel = viewModel(
-        viewModelStoreOwner = activity,
         factory = PlanViewModelFactory(app.trainingPlanRepository)
     )
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
