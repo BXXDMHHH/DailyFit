@@ -59,6 +59,7 @@ jobs:
           disable-animations: true
           script: gradle connectedDebugAndroidTest
       - name: Assemble unsigned release APK
+        if: always()
         run: gradle assembleRelease
       - name: Upload unit test reports and Room schemas
         if: always()
@@ -72,14 +73,16 @@ jobs:
             app/build/outputs/androidTest-results/connected/
           if-no-files-found: warn
       - name: Upload debug APK
-        if: success()
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: dailyfit-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: warn
       - name: Upload unsigned release APK
-        if: success()
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: dailyfit-release-unsigned-apk
           path: app/build/outputs/apk/release/app-release-unsigned.apk
+          if-no-files-found: warn
