@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
@@ -59,12 +60,16 @@ fun HomeScreen(
     ) {
         item {
             Column(Modifier.padding(top = 22.dp)) {
-                Text("DailyFit", style = MaterialTheme.typography.headlineMedium)
+                Text("DailyFit", style = MaterialTheme.typography.headlineLarge)
                 Text("把日常和训练，稳稳记录下来", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
         item {
-            Card(Modifier.fillMaxWidth()) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            ) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("今日习惯", style = MaterialTheme.typography.titleLarge)
@@ -79,6 +84,10 @@ fun HomeScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Text("今日完成率 ${dashboard.todayCompletionPercent}%", style = MaterialTheme.typography.titleMedium)
+                        androidx.compose.material3.LinearProgressIndicator(
+                            progress = dashboard.todayCompletionPercent / 100f,
+                            modifier = Modifier.fillMaxWidth()
+                        )
                         if (dashboard.todayHabits.isEmpty()) {
                             Text("今天没有需要完成的固定习惯", color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
@@ -90,7 +99,11 @@ fun HomeScreen(
             }
         }
         item {
-            Card(Modifier.fillMaxWidth()) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            ) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("今日临时任务", style = MaterialTheme.typography.titleLarge)
@@ -131,7 +144,11 @@ fun HomeScreen(
             }
         }
         item {
-            Card(Modifier.fillMaxWidth()) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            ) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text("今日训练", style = MaterialTheme.typography.titleMedium)
                     if (isWorkoutPlansLoading) {
