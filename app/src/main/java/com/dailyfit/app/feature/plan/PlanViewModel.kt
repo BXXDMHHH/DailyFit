@@ -242,47 +242,6 @@ class PlanViewModel(
         _uiState.value = _uiState.value.copy(planActions = _uiState.value.planActions.filterIndexed { i, _ -> i != index })
     }
 
-    /** One-tap import from the weekly template into the selected day's primary workout. */
-    fun importWeeklyActionsForSelectedDate() {
-        val state = _uiState.value
-        val date = state.selectedDate
-        val primary = state.dailyPlans.firstOrNull { it.isPrimary }
-        if (primary == null) {
-            showError(IllegalStateException("当天暂无主要训练安排"))
-            return
-        }
-        viewModelScope.launch {
-            runCatching { repository.importWeeklyActions(date, primary.id) }
-                .onSuccess {
-                    _uiState.value = _uiState.value.copy(message = "已将本周模板动作导入当天训练")
-                }
-                .onFailure { showError(it) }
-        }
-    }
-
-    fun importWeeklyActionsIntoDailyPlan() {
-        val state = _uiState.value
-        val ownerId = state.editingActionOwnerId ?: return
-        if (state.editingActionOwnerType != "DAILY_PLAN") return
-        viewModelScope.launch {
-            runCatching {
-                repository.importWeeklyActions(state.selectedDate, ownerId)
-                repository.getPlanExercises("DAILY_PLAN", ownerId)
-            }.onSuccess { rows ->
-                _uiState.value = _uiState.value.copy(
-                    planActions = rows.map {
-                        PlanActionDraft(
-                            it.exerciseId, it.exerciseNameSnapshot, it.categorySnapshot,
-                            it.equipmentSnapshot, it.notesSnapshot, it.targetSets.toString(),
-                            it.targetReps, it.targetWeight.toString()
-                        )
-                    },
-                    message = null
-                )
-            }.onFailure { showError(it) }
-        }
-    }
-
     fun saveActionEditor() {
         val state = _uiState.value
         val ownerType = state.editingActionOwnerType ?: return
