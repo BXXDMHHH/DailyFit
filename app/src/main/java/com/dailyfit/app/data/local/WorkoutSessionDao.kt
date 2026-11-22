@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.Flow
  @Query("UPDATE workout_sessions SET updatedAt=:at WHERE id=:id AND status='IN_PROGRESS'") suspend fun touch(id:String,at:Long):Int
  @Query("UPDATE workout_sessions SET title=:title,updatedAt=:at WHERE id=:id AND status='IN_PROGRESS'") suspend fun rename(id:String,title:String,at:Long):Int
  @Query("UPDATE workout_sessions SET status=:status,updatedAt=:at WHERE id=:id AND status='IN_PROGRESS'") suspend fun setStatus(id:String,status:String,at:Long):Int
+ @Query("SELECT * FROM workout_session_exercises WHERE id=:exerciseId AND sessionId=:sessionId LIMIT 1") suspend fun getExerciseForSession(exerciseId:String,sessionId:String):WorkoutSessionExerciseEntity?
  @Query("SELECT * FROM workout_session_exercises WHERE sessionId=:id ORDER BY sortOrder") suspend fun getExercises(id:String):List<WorkoutSessionExerciseEntity>
  @Query("SELECT * FROM workout_session_exercises WHERE sessionId=:id ORDER BY sortOrder") fun observeExercises(id:String):Flow<List<WorkoutSessionExerciseEntity>>
  @Insert(onConflict=OnConflictStrategy.ABORT) suspend fun insertExercise(row:WorkoutSessionExerciseEntity)
