@@ -344,7 +344,7 @@ class TrainingPlanRepository(
     }
 
     suspend fun savePlanExercises(ownerType: String, ownerId: String, actions: List<PlanActionInput>) {
-        require(ownerType == "WEEKLY_DAY" || ownerType == "DAILY_PLAN")
+        require(ownerType == "WEEKLY_DAY" || ownerType == "DAILY_PLAN" || ownerType == "WORKOUT_TEMPLATE")
         require(actions.all {
             it.name.isNotBlank() && it.targetSets in 1..30 &&
                 runCatching { WorkoutInputRules.parseTargetReps(it.targetReps) }.isSuccess &&
