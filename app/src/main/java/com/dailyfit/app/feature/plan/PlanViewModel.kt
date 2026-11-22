@@ -12,6 +12,7 @@ import com.dailyfit.app.data.local.DailyWorkoutPlanEntity
 import com.dailyfit.app.data.local.ExerciseEntity
 import com.dailyfit.app.data.local.WeeklyWorkoutPlanDayEntity
 import com.dailyfit.app.data.local.WorkoutTemplateEntity
+import com.dailyfit.app.data.local.WorkoutPlanExerciseEntity
 import com.dailyfit.app.data.repository.PlanActionInput
 import com.dailyfit.app.data.repository.TrainingPlanRepository
 import com.dailyfit.app.data.repository.WeeklyPlanInput
@@ -43,6 +44,7 @@ data class PlanUiState(
     val dailyPlans: List<DailyWorkoutPlanEntity> = emptyList(),
     val exercises: List<ExerciseEntity> = emptyList(),
     val workoutTemplates: List<WorkoutTemplateEntity> = emptyList(),
+    val workoutTemplateExercises: List<WorkoutPlanExerciseEntity> = emptyList(),
     val exerciseQuery: String = "",
     val editingActionOwnerType: String? = null,
     val editingActionOwnerId: String? = null,
@@ -72,8 +74,9 @@ class PlanViewModel(
                     repository.observeWeeklyPlan(date),
                     repository.observeDailyPlans(date),
                     exerciseQuery.flatMapLatest(repository::observeExercises),
-                    repository.observeWorkoutTemplates()
-                ) { weekly, daily, exercises, templates ->
+                    repository.observeWorkoutTemplates(),
+                    repository.observeWorkoutTemplateExercises()
+                ) { weekly, daily, exercises, templates, templateExercises ->
                     PlanUiState(
                         isLoading = false,
                         selectedDate = date,
@@ -81,6 +84,7 @@ class PlanViewModel(
                         dailyPlans = daily,
                         exercises = exercises,
                         workoutTemplates = templates,
+                        workoutTemplateExercises = templateExercises,
                         exerciseQuery = exerciseQuery.value
                     )
                 }
