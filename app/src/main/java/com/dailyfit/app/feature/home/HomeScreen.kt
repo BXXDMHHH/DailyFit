@@ -16,10 +16,9 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -53,125 +52,137 @@ fun HomeScreen(
     var showCreateTaskDialog by remember { mutableStateOf(false) }
     var editingTask by remember { mutableStateOf<TemporaryTaskEntity?>(null) }
     var deletingTask by remember { mutableStateOf<TemporaryTaskEntity?>(null) }
+    var showTemporaryTasks by remember { mutableStateOf(false) }
 
     LazyColumn(
         modifier = modifier.fillMaxSize().padding(horizontal = 18.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         item {
-            Column(Modifier.padding(top = 22.dp)) {
+            Column(Modifier.padding(top = 22.dp, bottom = 2.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("早上好，今天也向前一点", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
                 Text("DailyFit", style = MaterialTheme.typography.headlineLarge)
                 Text("把日常和训练，稳稳记录下来", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
+
+        // 固定习惯是首页的核心内容，放在首位并给予最大的视觉权重。
         item {
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("今日习惯", style = MaterialTheme.typography.titleLarge)
-                        Spacer(Modifier.weight(1f))
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text("每日习惯", style = MaterialTheme.typography.titleLarge)
+                            Text("每天坚持一点点，慢慢成为想成为的人", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        if (dashboard != null && !state.isLoading) {
+                            Text(
+                                "${dashboard.todayCompleted}/${dashboard.todayTotal}",
+                                style = MaterialTheme.typography.titleLarge,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
                     }
                     if (state.isLoading || dashboard == null) {
                         CircularProgressIndicator()
                     } else {
-                        Text(
-                            "${dashboard.date}  ·  已完成 ${dashboard.todayCompleted}/${dashboard.todayTotal}",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Text("今日完成率 ${dashboard.todayCompletionPercent}%", style = MaterialTheme.typography.titleMedium)
-                        androidx.compose.material3.LinearProgressIndicator(
-                            progress = dashboard.todayCompletionPercent / 100f,
-                            modifier = Modifier.fillMaxWidth()
+                        Text("${dashboard.date}  ·  今日完成率 ${dashboard.todayCompletionPercent}%", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        LinearProgressIndicator(
+                            progress = { dashboard.todayCompletionPercent / 100f },
+                            modifier = Modifier.fillMaxWidth(),
+                            color = MaterialTheme.colorScheme.primary,
+                            trackColor = MaterialTheme.colorScheme.primaryContainer
                         )
                         if (dashboard.todayHabits.isEmpty()) {
-                            Text("今天没有需要完成的固定习惯", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                        dashboard.todayHabits.forEach { item ->
-                            HabitRow(item = item, onChecked = { viewModel.setCompleted(item.record.id, it) })
+                            Text("今天没有安排固定习惯，去计划页添加吧。", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        } else {
+                            dashboard.todayHabits.forEach { item ->
+                                HabitRow(item = item, onChecked = { viewModel.setCompleted(item.record.id, it) })
+                            }
                         }
                     }
                 }
             }
         }
+
+        // 训练入口保留在首页，但层级低于固定习惯、高于临时任务。
         item {
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
             ) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("今日临时任务", style = MaterialTheme.typography.titleLarge)
-                        Spacer(Modifier.weight(1f))
-                        Button(onClick = { showCreateTaskDialog = true }) { Text("添加任务") }
+                        Text("今日训练", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+                        Text("TRAINING", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSecondaryContainer)
                     }
-                    if (state.isLoading || taskDashboard == null) {
-                        CircularProgressIndicator()
-                    } else {
-                        Text(
-                            "今日完成 ${taskDashboard.todayCompleted}/${taskDashboard.todayTotal}  ·  完成率 ${taskDashboard.todayCompletionPercent}%",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Text(
-                            "累计完成 ${taskDashboard.allCompleted}/${taskDashboard.allTotal}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        if (taskDashboard.tasks.isEmpty()) {
-                            Text("今天还没有临时任务", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                        taskDashboard.tasks.forEach { task ->
-                            TemporaryTaskRow(
-                                task = task,
-                                onChecked = { viewModel.setTemporaryTaskCompleted(task.id, it) },
-                                onEdit = { editingTask = task },
-                                onDelete = { deletingTask = task }
-                            )
-                        }
-                        Text(
-                            "临时任务仅在创建当天有效，不会延续到明天；统计独立于固定习惯。",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            }
-        }
-        item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-            ) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text("今日训练", style = MaterialTheme.typography.titleMedium)
                     if (isWorkoutPlansLoading) {
                         CircularProgressIndicator()
                     } else if (todayWorkoutPlans.isEmpty()) {
-                        Text("今天还没有训练安排，可以在计划页进行设置。", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("今天还没有训练安排，可以在计划页进行设置。", color = MaterialTheme.colorScheme.onSecondaryContainer)
                     } else {
                         todayWorkoutPlans.forEach { plan ->
                             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                                Text(plan.title, modifier = Modifier.weight(1f))
+                                Text(plan.title, modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.onSecondaryContainer)
                                 Text(
                                     when (plan.status) {
                                         "COMPLETED" -> "已完成"
                                         "SKIPPED" -> "已跳过"
                                         else -> "未完成"
                                     },
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer
                                 )
                             }
                         }
                     }
-                    Text("查看今日训练安排并记录每组实际数据", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Button(onClick = onStartWorkout) { Text("开始训练") }
+                }
+            }
+        }
+
+        // 临时任务降为次级工具区，默认收起，不与每日习惯争夺首屏注意力。
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+            ) {
+                Column(Modifier.padding(horizontal = 16.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text("临时任务", style = MaterialTheme.typography.titleMedium)
+                            Text(
+                                if (taskDashboard == null) "只记录今天额外要做的事" else "今日完成 ${taskDashboard.todayCompleted}/${taskDashboard.todayTotal} · 不计入习惯完成率",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        TextButton(onClick = { showCreateTaskDialog = true }) { Text("＋ 添加") }
+                        TextButton(onClick = { showTemporaryTasks = !showTemporaryTasks }) {
+                            Text(if (showTemporaryTasks) "收起" else "展开")
+                        }
+                    }
+                    if (showTemporaryTasks) {
+                        if (state.isLoading || taskDashboard == null) {
+                            CircularProgressIndicator()
+                        } else if (taskDashboard.tasks.isEmpty()) {
+                            Text("今天还没有临时任务", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        } else {
+                            taskDashboard.tasks.forEach { task ->
+                                TemporaryTaskRow(
+                                    task = task,
+                                    onChecked = { viewModel.setTemporaryTaskCompleted(task.id, it) },
+                                    onEdit = { editingTask = task },
+                                    onDelete = { deletingTask = task }
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -237,7 +248,7 @@ private fun TemporaryTaskRow(
             Text(
                 task.title,
                 modifier = Modifier.weight(1f),
-                style = MaterialTheme.typography.bodyLarge,
+                style = MaterialTheme.typography.bodyMedium,
                 textDecoration = if (task.isCompleted) TextDecoration.LineThrough else TextDecoration.None,
                 color = if (task.isCompleted) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface
             )
