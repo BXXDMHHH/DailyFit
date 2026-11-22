@@ -220,7 +220,7 @@ class TrainingPlanRepository(
 
     suspend fun savePlanExercises(ownerType: String, ownerId: String, actions: List<PlanActionInput>) {
         require(ownerType == "WEEKLY_DAY" || ownerType == "DAILY_PLAN")
-        require(actions.all { it.name.isNotBlank() && it.targetSets in 1..30 && it.targetReps.isNotBlank() && it.targetWeight >= 0.0 }) {
+        require(actions.all { it.name.isNotBlank() && it.targetSets in 1..30 && it.targetReps.isNotBlank() && it.targetWeight.isFinite() && it.targetWeight >= 0.0 }) {
             "动作名称、目标组数、次数或重量不合法"
         }
         database.withTransaction {

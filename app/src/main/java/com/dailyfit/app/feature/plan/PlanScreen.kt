@@ -50,7 +50,7 @@ fun PlanScreen(viewModel: PlanViewModel, habitViewModel: HabitViewModel, modifie
     var showExerciseEditor by remember { mutableStateOf(false) }
     var deletingExercise by remember { mutableStateOf<ExerciseEntity?>(null) }
     var editingExtra by remember { mutableStateOf<DailyWorkoutPlanEntity?>(null) }
-    var dateText by remember { mutableStateOf(state.selectedDate.toString()) }
+    var dateText by remember(state.selectedDate) { mutableStateOf(state.selectedDate.toString()) }
 
     LazyColumn(
         modifier = modifier.fillMaxSize().padding(horizontal = 18.dp),

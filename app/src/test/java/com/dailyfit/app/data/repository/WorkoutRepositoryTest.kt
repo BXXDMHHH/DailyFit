@@ -180,4 +180,56 @@ class WorkoutRepositoryTest {
   assertFalse(planRepository.observeExercises("").first().any { it.id == deletedId })
  }
 
+ @Test fun addingSetRejectsExerciseFromAnotherSession() = runBlocking {
+  val firstPlan=DailyWorkoutPlanEntity("owner-plan","2026-11-22","第一份训练","", "PLANNED",true,null,1,1)
+  val firstSession=repo.start(firstPlan)
+  repo.addExercise(firstSession,ExerciseEntity("owned-ex","卧推","胸部","杠铃","",1,1),targetSets=2)
+  val foreignExercise=db.workoutSessionDao().getExercises(firstSession).single()
+  repo.finish(firstSession)
+
+  val secondPlan=DailyWorkoutPlanEntity("other-plan","2026-11-22","第二份训练","", "PLANNED",true,null,2,2)
+  val secondSession=repo.start(secondPlan)
+  val before=db.workoutSessionDao().getSets(foreignExercise.id).size
+  assertTrue(runCatching { repo.addSet(secondSession,foreignExercise.id) }.isFailure)
+  assertEquals(before,db.workoutSessionDao().getSets(foreignExercise.id).size)
+  assertTrue(db.workoutSessionDao().getExercises(secondSession).isEmpty())
+ }
+
+ @Test fun actualWeightMustBeFiniteAndNonNegative() = runBlocking {
+  val plan=DailyWorkoutPlanEntity("finite-plan","2026-11-22","力量训练","", "PLANNED",true,null,1,1)
+  val session=repo.start(plan)
+  repo.addExercise(session,ExerciseEntity("finite-ex","深蹲","腿部","杠铃","",1,1),targetSets=1)
+  val exercise=db.workoutSessionDao().getExercises(session).single()
+  val set=db.workoutSessionDao().getSets(exercise.id).single()
+  assertTrue(runCatching { repo.updateSet(session,set.id,Double.NaN,8,true) }.isFailure)
+  assertTrue(runCatching { repo.updateSet(session,set.id,-1.0,8,true) }.isFailure)
+  assertNull(db.workoutSessionDao().getSets(exercise.id).single().actualWeight)
+ }
+
+ @Test fun deletingSetRenumbersRemainingSetsAndNextSetStaysSequential() = runBlocking {
+  val plan=DailyWorkoutPlanEntity("renumber-plan","2026-11-22","力量训练","", "PLANNED",true,null,1,1)
+  val session=repo.start(plan)
+  repo.addExercise(session,ExerciseEntity("renumber-ex","深蹲","腿部","杠铃","",1,1),targetSets=3)
+  val exercise=db.workoutSessionDao().getExercises(session).single()
+  val before=db.workoutSessionDao().getSets(exercise.id)
+  repo.removeSet(session,exercise.id,before[1].id)
+  assertEquals(listOf(1,2),db.workoutSessionDao().getSets(exercise.id).map { it.setNumber })
+  repo.addSet(session,exercise.id)
+  assertEquals(listOf(1,2,3),db.workoutSessionDao().getSets(exercise.id).map { it.setNumber })
+ }
+
+ @Test fun addingExerciseAfterRemovingOneKeepsStableSortOrder() = runBlocking {
+  val plan=DailyWorkoutPlanEntity("sort-plan","2026-11-22","力量训练","", "PLANNED",true,null,1,1)
+  val session=repo.start(plan)
+  repo.addExercise(session,ExerciseEntity("sort-a","卧推","胸","杠铃","",1,1))
+  repo.addExercise(session,ExerciseEntity("sort-b","深蹲","腿","杠铃","",1,1))
+  repo.addExercise(session,ExerciseEntity("sort-c","硬拉","背","杠铃","",1,1))
+  val rows=db.workoutSessionDao().getExercises(session)
+  repo.removeExercise(session,rows[1].id)
+  repo.addExercise(session,ExerciseEntity("sort-d","划船","背","杠铃","",1,1))
+  val updated=db.workoutSessionDao().getExercises(session)
+  assertEquals(listOf("卧推","硬拉","划船"),updated.map { it.exerciseNameSnapshot })
+  assertEquals(listOf(0,2,3),updated.map { it.sortOrder })
+ }
+
 }

@@ -3,6 +3,7 @@ package com.dailyfit.app
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.icons.Icons
@@ -18,7 +19,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -38,7 +38,6 @@ import com.dailyfit.app.feature.plan.PlanViewModelFactory
 import com.dailyfit.app.feature.workout.WorkoutScreen
 import com.dailyfit.app.feature.workout.WorkoutViewModel
 import com.dailyfit.app.feature.workout.WorkoutViewModelFactory
-import java.time.LocalDate
 import com.dailyfit.app.ui.theme.DailyFitTheme
 
 class MainActivity : ComponentActivity() {
@@ -55,7 +54,8 @@ private enum class MainDestination(val route: String, val label: String) {
 @Composable
 private fun DailyFitApp() {
     val navController = rememberNavController()
-    val activity = LocalContext.current as ComponentActivity
+    val activity = LocalActivity.current as? ComponentActivity
+        ?: error("DailyFit requires a ComponentActivity host")
     val app = activity.application as DailyFitApplication
     val habitViewModel: HabitViewModel = viewModel(
         viewModelStoreOwner = activity,
@@ -68,8 +68,9 @@ private fun DailyFitApp() {
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { habitViewModel.refreshDate() }
     val entry by navController.currentBackStackEntryAsState()
     val currentRoute = entry?.destination?.route
-    LaunchedEffect(currentRoute) {
-        if (currentRoute == MainDestination.Home.route) planViewModel.selectDate(LocalDate.now())
+    val businessDate by habitViewModel.businessDate.collectAsStateWithLifecycle()
+    LaunchedEffect(currentRoute, businessDate) {
+        if (currentRoute == MainDestination.Home.route) planViewModel.selectDate(businessDate)
     }
 
     Scaffold(
@@ -107,10 +108,10 @@ private fun DailyFitApp() {
                 HomeScreen(
                     state = state,
                     viewModel = habitViewModel,
-                    todayWorkoutPlans = planState.dailyPlans.takeIf { planState.selectedDate == LocalDate.now() }.orEmpty(),
+                    todayWorkoutPlans = planState.dailyPlans.takeIf { planState.selectedDate == businessDate }.orEmpty(),
                     isWorkoutPlansLoading = planState.isLoading,
                     onStartWorkout = {
-                        planViewModel.selectDate(LocalDate.now())
+                        planViewModel.selectDate(businessDate)
                         navController.navigate("workout")
                     }
                 )
@@ -124,7 +125,7 @@ private fun DailyFitApp() {
                 )
                 WorkoutScreen(
                     viewModel = workoutViewModel,
-                    plans = planState.dailyPlans.takeIf { planState.selectedDate == LocalDate.now() }.orEmpty(),
+                    plans = planState.dailyPlans.takeIf { planState.selectedDate == businessDate }.orEmpty(),
                     onBack = { navController.popBackStack() }
                 )
             }

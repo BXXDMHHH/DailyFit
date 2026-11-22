@@ -40,6 +40,7 @@ class HabitViewModel(
     private val clock: Clock = Clock.systemDefaultZone()
 ) : ViewModel() {
     private val currentDate = MutableStateFlow(LocalDate.now(clock))
+    val businessDate: StateFlow<LocalDate> = currentDate.asStateFlow()
     private val _uiState = MutableStateFlow(HabitUiState())
     val uiState: StateFlow<HabitUiState> = _uiState.asStateFlow()
     private var midnightJob: Job? = null

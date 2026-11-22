@@ -42,10 +42,10 @@ import java.time.DayOfWeek
 fun HomeScreen(
     state: HabitUiState,
     viewModel: HabitViewModel,
+    modifier: Modifier = Modifier,
     onStartWorkout: () -> Unit = {},
     todayWorkoutPlans: List<DailyWorkoutPlanEntity> = emptyList(),
-    isWorkoutPlansLoading: Boolean = false,
-    modifier: Modifier = Modifier
+    isWorkoutPlansLoading: Boolean = false
 ) {
     val dashboard = state.dashboard
     val taskDashboard = state.temporaryTaskDashboard

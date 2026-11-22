@@ -22,7 +22,7 @@ class WorkoutRepository(private val db:DailyFitDatabase, private val clock:Clock
   val now=clock.millis()
   dao.insertSession(WorkoutSessionEntity(sessionId,plan.id,plan.businessDate,plan.title,"IN_PROGRESS",now,now))
   actions.sortedBy { it.sortOrder }.forEachIndexed { index, action ->
-   require(action.targetSets in 1..30 && action.targetWeight >= 0.0 && action.targetReps.isNotBlank())
+   require(action.targetSets in 1..30 && action.targetWeight.isFinite() && action.targetWeight >= 0.0 && action.targetReps.isNotBlank())
    val exerciseId=id()
    dao.insertExercise(WorkoutSessionExerciseEntity(
     exerciseId,sessionId,action.exerciseId,action.exerciseNameSnapshot,action.categorySnapshot,
@@ -38,13 +38,13 @@ class WorkoutRepository(private val db:DailyFitDatabase, private val clock:Clock
  }
  suspend fun addExercise(sessionId:String, exercise:ExerciseEntity?, temporaryName:String?=null,
                          targetSets:Int=3,targetReps:String="8-12",targetWeight:Double=0.0) = db.withTransaction {
-  require(targetSets in 1..30); require(targetWeight>=0)
+  require(targetSets in 1..30); require(targetWeight.isFinite() && targetWeight>=0)
   val session=dao.get(sessionId) ?: error("训练不存在")
   check(session.status=="IN_PROGRESS") { "训练已结束，不能修改" }
   val name=exercise?.name ?: temporaryName?.trim().orEmpty()
   require(name.isNotBlank()) { "动作名称不能为空" }
   val exId=id()
-  val order=dao.getExercises(sessionId).size
+  val order=dao.nextExerciseOrder(sessionId)
   dao.insertExercise(WorkoutSessionExerciseEntity(exId,sessionId,exercise?.id,name,
    exercise?.category.orEmpty(),exercise?.equipment.orEmpty(),exercise?.notes.orEmpty(),
    order,targetSets,targetReps,targetWeight,exercise==null))
@@ -53,21 +53,26 @@ class WorkoutRepository(private val db:DailyFitDatabase, private val clock:Clock
  }
  suspend fun removeExercise(sessionId:String,exerciseId:String) = db.withTransaction {
   val session=dao.get(sessionId) ?: error("训练不存在"); check(session.status=="IN_PROGRESS")
-  dao.deleteSetsForExercise(exerciseId,sessionId); dao.deleteExercise(exerciseId,sessionId)
+  dao.deleteSetsForExercise(exerciseId,sessionId)
+  check(dao.deleteExercise(exerciseId,sessionId)==1) { "动作不存在或训练已结束" }
  }
  suspend fun addSet(sessionId:String,exerciseId:String) = db.withTransaction {
   val session=dao.get(sessionId) ?: error("训练不存在"); check(session.status=="IN_PROGRESS")
-  val sets=dao.getSets(exerciseId); val last=sets.lastOrNull()
+  check(dao.getExercise(exerciseId,sessionId)!=null) { "动作不属于当前训练" }
+  val sets=dao.getSetsForExercise(exerciseId,sessionId); val last=sets.lastOrNull()
   dao.insertSets(listOf(WorkoutSessionSetEntity(id(),exerciseId,((sets.maxOfOrNull { it.setNumber } ?: 0)+1),
    last?.targetReps ?: 0,last?.targetWeight ?: 0.0,null,null,false,clock.millis())))
  }
  suspend fun removeSet(sessionId:String,exerciseId:String,setId:String) = db.withTransaction {
   val session=dao.get(sessionId) ?: error("训练不存在"); check(session.status=="IN_PROGRESS")
-  val sets=dao.getSets(exerciseId); require(sets.size>1) { "每个动作至少保留一组" }
-  dao.deleteSet(setId,sessionId)
+  val sets=dao.getSetsForExercise(exerciseId,sessionId); require(sets.size>1) { "每个动作至少保留一组" }
+  check(dao.deleteSet(setId,sessionId)==1) { "训练组不存在或训练已结束" }
+  dao.getSetsForExercise(exerciseId,sessionId).forEachIndexed { index, set ->
+   dao.renumberSet(set.id,sessionId,index+1,clock.millis())
+  }
  }
  suspend fun updateSet(sessionId:String,setId:String,weight:Double?,reps:Int?,done:Boolean) {
-  require(weight==null || weight>=0); require(reps==null || reps>=0)
+  require(weight==null || (weight.isFinite() && weight>=0)); require(reps==null || reps>=0)
   check(dao.updateSet(setId,sessionId,weight,reps,done,clock.millis())>0) { "训练已结束或数据不存在" }
   dao.touch(sessionId,clock.millis())
  }

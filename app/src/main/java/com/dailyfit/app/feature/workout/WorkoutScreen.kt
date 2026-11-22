@@ -55,8 +55,13 @@ fun WorkoutScreen(
             }
         }
 
-        if (state.session == null) {
+        if (state.isLoading) {
+            item { androidx.compose.foundation.layout.Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) { androidx.compose.material3.CircularProgressIndicator() } }
+        } else if (state.session == null) {
             item { Text("选择今天的训练安排开始记录") }
+            if (plans.isEmpty()) {
+                item { Text("今天暂无可开始的训练安排，请先在计划页设置训练计划。", color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            }
             items(plans, key = { it.id }) { plan ->
                 Card(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {

@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 
 data class WorkoutExerciseUi(
@@ -24,6 +25,7 @@ data class WorkoutExerciseUi(
 )
 
 data class WorkoutUiState(
+    val isLoading: Boolean = true,
     val session: WorkoutSessionEntity? = null,
     val exercises: List<WorkoutExerciseUi> = emptyList(),
     val library: List<ExerciseEntity> = emptyList(),
@@ -41,9 +43,11 @@ class WorkoutViewModel(
 
     init {
         viewModelScope.launch {
-            workouts.observeActive().collect { active ->
+            workouts.observeActive()
+                .catch { error -> _state.update { it.copy(isLoading = false, message = error.message ?: "训练状态加载失败") } }
+                .collect { active ->
                 val previousSessionId = _state.value.session?.id
-                _state.update { it.copy(session = active) }
+                _state.update { it.copy(isLoading = false, session = active) }
                 if (active?.id != previousSessionId) {
                     if (active != null) refresh(active.id)
                     else _state.update { it.copy(exercises = emptyList()) }
@@ -51,15 +55,20 @@ class WorkoutViewModel(
             }
         }
         viewModelScope.launch {
-            workouts.observeHistory().collect { rows -> _state.update { it.copy(history = rows) } }
+            workouts.observeHistory()
+                .catch { error -> message(error) }
+                .collect { rows -> _state.update { it.copy(history = rows) } }
         }
     }
 
     fun refresh(id: String) {
         viewModelScope.launch {
-            val dao = database.workoutSessionDao()
-            val rows = dao.getExercises(id)
-            _state.update { it.copy(exercises = rows.map { exercise -> WorkoutExerciseUi(exercise, dao.getSets(exercise.id)) }) }
+            runCatching {
+                val dao = database.workoutSessionDao()
+                val rows = dao.getExercises(id)
+                rows.map { exercise -> WorkoutExerciseUi(exercise, dao.getSets(exercise.id)) }
+            }.onSuccess { rows -> _state.update { it.copy(exercises = rows) } }
+                .onFailure(::message)
         }
     }
 
@@ -75,7 +84,9 @@ class WorkoutViewModel(
 
     fun loadLibrary() {
         viewModelScope.launch {
-            _state.update { it.copy(library = database.exerciseDao().observeAll().first()) }
+            runCatching { database.exerciseDao().observeAll().first() }
+                .onSuccess { rows -> _state.update { it.copy(library = rows) } }
+                .onFailure(::message)
         }
     }
 

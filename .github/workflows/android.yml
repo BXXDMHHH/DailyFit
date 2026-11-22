@@ -22,10 +22,45 @@ jobs:
           gradle-version: '9.6.0'
       - name: Generate Room schema
         run: gradle kspDebugKotlin --rerun-tasks
-      - name: Run unit tests
+      - name: Compile debug Kotlin
+        run: gradle compileDebugKotlin
+      - name: Run unit and Room integration tests
         run: gradle testDebugUnitTest
+      - name: Summarize test results
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import glob, xml.etree.ElementTree as ET
+          totals = {"tests": 0, "failures": 0, "errors": 0, "skipped": 0}
+          for path in glob.glob("app/build/test-results/testDebugUnitTest/*.xml"):
+              root = ET.parse(path).getroot()
+              for key in totals:
+                  totals[key] += int(root.attrib.get(key, 0))
+              for case in root.iter("testcase"):
+                  for failure in list(case.findall("failure")) + list(case.findall("error")):
+                      print(f"TEST FAILURE: {case.attrib.get('classname')}.{case.attrib.get('name')}: {failure.attrib.get('message', '')}")
+                      if failure.text:
+                          print(failure.text)
+          print("JUnit summary: " + ", ".join(f"{k}={v}" for k, v in totals.items()))
+          if totals["tests"] == 0:
+              raise SystemExit("No JUnit tests were discovered")
+          PY
+      - name: Run Android lint
+        run: gradle lintDebug
       - name: Assemble debug APK
         run: gradle assembleDebug
+      - name: Run Android navigation smoke test
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_2
+          disable-animations: true
+          script: gradle connectedDebugAndroidTest
+      - name: Assemble unsigned release APK
+        if: always()
+        run: gradle assembleRelease
       - name: Upload unit test reports and Room schemas
         if: always()
         uses: actions/upload-artifact@v4
@@ -34,10 +69,20 @@ jobs:
           path: |
             app/build/test-results/testDebugUnitTest/
             app/schemas/
+            app/build/reports/lint-results-debug.html
+            app/build/outputs/androidTest-results/connected/
           if-no-files-found: warn
       - name: Upload debug APK
-        if: success()
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: dailyfit-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: warn
+      - name: Upload unsigned release APK
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dailyfit-release-unsigned-apk
+          path: app/build/outputs/apk/release/app-release-unsigned.apk
+          if-no-files-found: warn
