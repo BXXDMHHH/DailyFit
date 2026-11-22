@@ -144,7 +144,6 @@ fun PlanScreen(viewModel: PlanViewModel, habitViewModel: HabitViewModel, modifie
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                             Text(names.getOrElse(day.dayOfWeek - 1) { "" }, modifier = Modifier.weight(1f))
                             Text(if (day.isRestDay) "休息" else day.title, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            TextButton(onClick = { viewModel.openActionEditor("WEEKLY_DAY", day.id) }) { Text("设置动作") }
                         }
                     }
                 }
@@ -410,7 +409,7 @@ private fun DailyPlanRow(
                 Text(if (plan.isPrimary) "主要训练" else "额外训练", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             TextButton(onClick = onEdit) { Text("调整") }
-            TextButton(onClick = onActions) { Text("动作") }
+            TextButton(onClick = onActions) { Text("动作微调") }
             if (!plan.isPrimary) TextButton(onClick = onDelete) { Text("删除") }
         }
         Text("状态：${statusLabel(plan.status)}", style = MaterialTheme.typography.bodySmall)
