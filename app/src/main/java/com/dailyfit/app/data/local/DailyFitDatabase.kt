@@ -36,6 +36,7 @@ interface AppMetadataDao {
         WeeklyWorkoutPlanDayEntity::class,
         DailyWorkoutPlanEntity::class,
         ExerciseEntity::class,
+        WorkoutTemplateEntity::class,
         WorkoutPlanExerciseEntity::class,
         WorkoutSessionEntity::class,
         WorkoutSessionExerciseEntity::class,
@@ -44,7 +45,7 @@ interface AppMetadataDao {
         WorkoutHistoryExerciseEntity::class,
         WorkoutHistorySetEntity::class
     ],
-    version = 6,
+    version = 7,
     exportSchema = true
 )
 abstract class DailyFitDatabase : RoomDatabase() {
@@ -55,6 +56,7 @@ abstract class DailyFitDatabase : RoomDatabase() {
     abstract fun weeklyWorkoutPlanDao(): WeeklyWorkoutPlanDao
     abstract fun dailyWorkoutPlanDao(): DailyWorkoutPlanDao
     abstract fun exerciseDao(): ExerciseDao
+    abstract fun workoutTemplateDao(): WorkoutTemplateDao
     abstract fun workoutSessionDao(): WorkoutSessionDao
     abstract fun workoutPlanExerciseDao(): WorkoutPlanExerciseDao
 
@@ -141,6 +143,23 @@ abstract class DailyFitDatabase : RoomDatabase() {
                     db.execSQL("CREATE TRIGGER IF NOT EXISTS immutable_${table}_update BEFORE UPDATE ON ${table} BEGIN SELECT RAISE(ABORT, 'Workout history is immutable'); END")
                     db.execSQL("CREATE TRIGGER IF NOT EXISTS immutable_${table}_delete BEFORE DELETE ON ${table} BEGIN SELECT RAISE(ABORT, 'Workout history is immutable'); END")
                 }
+            }
+        }
+
+        val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS workout_templates (
+                        id TEXT NOT NULL PRIMARY KEY,
+                        name TEXT NOT NULL,
+                        category TEXT NOT NULL,
+                        description TEXT NOT NULL,
+                        createdAt INTEGER NOT NULL,
+                        updatedAt INTEGER NOT NULL
+                    )
+                """.trimIndent())
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_workout_templates_category ON workout_templates(category)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_workout_templates_name ON workout_templates(name)")
             }
         }
 
