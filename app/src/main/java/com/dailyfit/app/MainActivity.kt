@@ -68,8 +68,9 @@ private fun DailyFitApp() {
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { habitViewModel.refreshDate() }
     val entry by navController.currentBackStackEntryAsState()
     val currentRoute = entry?.destination?.route
-    LaunchedEffect(currentRoute) {
-        if (currentRoute == MainDestination.Home.route) planViewModel.selectDate(LocalDate.now())
+    val businessDate by habitViewModel.businessDate.collectAsStateWithLifecycle()
+    LaunchedEffect(currentRoute, businessDate) {
+        if (currentRoute == MainDestination.Home.route) planViewModel.selectDate(businessDate)
     }
 
     Scaffold(

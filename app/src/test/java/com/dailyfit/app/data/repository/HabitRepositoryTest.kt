@@ -166,6 +166,35 @@ class HabitRepositoryTest {
             )
             .build()
         assertEquals("preserved", migrated.appMetadataDao().getValue("existing"))
+
+        val sql = migrated.openHelper.writableDatabase
+        sql.execSQL("""
+            INSERT INTO workout_history
+            (id, sessionId, planId, businessDate, titleSnapshot, status, startedAt, completedAt, durationSeconds)
+            VALUES ('legacy-history', 'legacy-session', NULL, '2026-11-23', '旧训练', 'COMPLETED', 1, 2, 1)
+        """.trimIndent())
+        sql.execSQL("""
+            INSERT INTO workout_history_exercises
+            (id, historyId, sourceExerciseId, exerciseNameSnapshot, categorySnapshot, equipmentSnapshot, notesSnapshot, sortOrder, targetSets, targetReps, targetWeight, isTemporary)
+            VALUES ('legacy-exercise', 'legacy-history', NULL, '旧动作', '', '', '', 0, 1, '8', 20.0, 1)
+        """.trimIndent())
+        sql.execSQL("""
+            INSERT INTO workout_history_sets
+            (id, historyExerciseId, setNumber, targetReps, targetWeight, actualReps, actualWeight, isCompleted)
+            VALUES ('legacy-set', 'legacy-exercise', 1, 8, 20.0, 8, 20.0, 1)
+        """.trimIndent())
+        val blocked = listOf(
+            runCatching { sql.execSQL("UPDATE workout_history SET titleSnapshot='改写' WHERE id='legacy-history'") },
+            runCatching { sql.execSQL("DELETE FROM workout_history WHERE id='legacy-history'") },
+            runCatching { sql.execSQL("UPDATE workout_history_exercises SET exerciseNameSnapshot='改写' WHERE id='legacy-exercise'") },
+            runCatching { sql.execSQL("DELETE FROM workout_history_exercises WHERE id='legacy-exercise'") },
+            runCatching { sql.execSQL("UPDATE workout_history_sets SET actualReps=99 WHERE id='legacy-set'") },
+            runCatching { sql.execSQL("DELETE FROM workout_history_sets WHERE id='legacy-set'") }
+        )
+        assertTrue(blocked.all { it.isFailure })
+        assertEquals(1, sql.query("SELECT COUNT(*) FROM workout_history").use { it.moveToFirst(); it.getInt(0) })
+        assertEquals(1, sql.query("SELECT COUNT(*) FROM workout_history_exercises").use { it.moveToFirst(); it.getInt(0) })
+        assertEquals(1, sql.query("SELECT COUNT(*) FROM workout_history_sets").use { it.moveToFirst(); it.getInt(0) })
         migrated.close()
         context.deleteDatabase(databaseName)
         Unit
