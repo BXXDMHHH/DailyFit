@@ -8,7 +8,7 @@ Kotlin、Jetpack Compose、Material 3、MVVM、ViewModel + StateFlow、Room、Co
 - TemporaryTask：当天独立临时任务。
 - WeeklyWorkoutPlanVersion / WeeklyWorkoutPlanDay：按生效日期版本化的每周计划。
 - DailyWorkoutPlan：每日日程快照及额外安排。
-- Exercise：独立动作库。
+- Exercise：独立动作库。\n- WorkoutTemplate：可复用的完整单次训练计划，保存名称、分类和说明。
 
 ## 阶段 4：训练执行与正式历史
 
@@ -31,8 +31,17 @@ WorkoutPlanExerciseEntity 通过 ownerType + ownerId 关联周模板日（WEEKLY
 每周模板生成新版本时，按星期复制上一版本的动作配置；生成每日主要计划时，将对应星期动作复制为每日独立快照。如果每日计划已先于周模板动作配置生成，用户可在单日动作编辑器中显式选择“从每周模板覆盖当天动作”，不会静默改写已生成快照。单日动作调整不会回写周模板；后续周模板版本也不会覆盖已经生成的每日快照。
 开始训练时，Repository 将每日计划动作及目标数据一次性复制到 WorkoutSessionExercise / WorkoutSessionSet。训练执行页再允许临时添加动作、增删动作组、修改实际重量/次数。计划、进行中会话和正式历史各自保存快照，不依赖动作库实时数据。
 
+### 完整训练计划库（Room v7）
+WorkoutTemplate 保存完整单次训练计划的元信息；WorkoutPlanExerciseEntity 通过 ownerType=WORKOUT_TEMPLATE、ownerId=模板 ID 保存模板动作快照、排序、目标组数、次数和重量。
+- 预置肩部、胸部、背部、腿部、手臂五套完整训练计划。
+- 模板元信息和动作列表可独立维护。
+- 导入某日时，在事务中校验日期、主要训练状态、模板存在及无进行中训练，然后将模板元信息和全部动作复制到 DAILY_PLAN。
+- DAILY_PLAN 副本不依赖模板实时数据。修改或删除模板不会改变已导入的每日训练。
+- 每日训练开始时仍按既有流程复制到 WorkoutSession；正式保存时继续复制到不可变历史表。
+- 周训练日程只负责长期循环与日期安排；WorkoutTemplate 负责某一训练日的完整动作内容，两者职责分离。
+
 ## Room 版本
-v6。v4→v5 显式迁移新增训练会话、训练组、正式历史表和历史不可变触发器；v5→v6 新增 workout_plan_exercises 及索引。新安装通过 RoomDatabase.Callback 同样创建正式历史 UPDATE/DELETE 保护触发器。所有迁移均保留既有业务数据，不使用 destructive migration。
+v7。v4→v5 显式迁移新增训练会话、训练组、正式历史表和历史不可变触发器；v5→v6 新增 workout_plan_exercises 及索引；v6→v7 新增 workout_templates 及分类、名称索引。新安装通过 RoomDatabase.Callback 同样创建正式历史 UPDATE/DELETE 保护触发器。所有迁移均保留既有业务数据，不使用 destructive migration。
 
 ## 测试策略
 覆盖训练草稿持久化与恢复、计划动作跨周模板/每日快照/会话/历史的传递、单日覆盖独立性、实际数据保存、动作库修改/删除后的历史快照完整性、正式历史三张表 SQL UPDATE/DELETE 被触发器拒绝、未完成/跳过/放弃状态、训练次数/完成组数/训练量统计。习惯历史展示连续有打卡天数。CI 结果未完成前不标记本阶段验收通过。
