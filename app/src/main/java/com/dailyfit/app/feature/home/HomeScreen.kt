@@ -44,11 +44,15 @@ fun HomeScreen(
     viewModel: HabitViewModel,
     modifier: Modifier = Modifier,
     onStartWorkout: () -> Unit = {},
+    onOpenTrainingPlan: () -> Unit = {},
     todayWorkoutPlans: List<DailyWorkoutPlanEntity> = emptyList(),
     isWorkoutPlansLoading: Boolean = false
 ) {
     val dashboard = state.dashboard
     val taskDashboard = state.temporaryTaskDashboard
+    val pendingHabits = dashboard?.todayHabits?.filterNot { it.record.isCompleted }.orEmpty()
+    val completedHabits = dashboard?.todayHabits?.filter { it.record.isCompleted }.orEmpty()
+    var showCompletedHabits by remember { mutableStateOf(false) }
     var showCreateTaskDialog by remember { mutableStateOf(false) }
     var editingTask by remember { mutableStateOf<TemporaryTaskEntity?>(null) }
     var deletingTask by remember { mutableStateOf<TemporaryTaskEntity?>(null) }
@@ -100,8 +104,26 @@ fun HomeScreen(
                         if (dashboard.todayHabits.isEmpty()) {
                             Text("今天没有安排固定习惯，去计划页添加吧。", color = MaterialTheme.colorScheme.onSurfaceVariant)
                         } else {
-                            dashboard.todayHabits.forEach { item ->
-                                HabitRow(item = item, onChecked = { viewModel.setCompleted(item.record.id, it) })
+                            Text("待完成 · ${pendingHabits.size}", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                            if (pendingHabits.isEmpty()) {
+                                Text("今天的习惯都完成啦。", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            } else {
+                                pendingHabits.forEach { item ->
+                                    HabitRow(item = item, onChecked = { viewModel.setCompleted(item.record.id, it) })
+                                }
+                            }
+                            if (completedHabits.isNotEmpty()) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text("已完成 · ${completedHabits.size}", modifier = Modifier.weight(1f), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    TextButton(onClick = { showCompletedHabits = !showCompletedHabits }) {
+                                        Text(if (showCompletedHabits) "收起" else "查看")
+                                    }
+                                }
+                                if (showCompletedHabits) {
+                                    completedHabits.forEach { item ->
+                                        HabitRow(item = item, onChecked = { viewModel.setCompleted(item.record.id, it) })
+                                    }
+                                }
                             }
                         }
                     }
@@ -124,7 +146,7 @@ fun HomeScreen(
                     if (isWorkoutPlansLoading) {
                         CircularProgressIndicator()
                     } else if (todayWorkoutPlans.isEmpty()) {
-                        Text("今天还没有训练安排，可以在计划页进行设置。", color = MaterialTheme.colorScheme.onSecondaryContainer)
+                        Text("先设置每周训练动作，再一键导入到今天。", color = MaterialTheme.colorScheme.onSecondaryContainer)
                     } else {
                         todayWorkoutPlans.forEach { plan ->
                             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -140,7 +162,10 @@ fun HomeScreen(
                             }
                         }
                     }
-                    Button(onClick = onStartWorkout) { Text("开始训练") }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Button(onClick = onStartWorkout) { Text("开始今日训练") }
+                        TextButton(onClick = onOpenTrainingPlan) { Text("设置动作 / 导入") }
+                    }
                 }
             }
         }
