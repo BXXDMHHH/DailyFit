@@ -57,7 +57,7 @@ class PlanViewModel(
     private var observedCurrentDate = LocalDate.now(clock)
     private var midnightJob: Job? = null
     private val exerciseQuery = MutableStateFlow("")
-    private val _uiState = MutableStateFlow(PlanUiState())
+    private val _uiState = MutableStateFlow(PlanUiState(selectedDate = LocalDate.now(clock)))
     val uiState: StateFlow<PlanUiState> = _uiState.asStateFlow()
 
     init {
@@ -92,7 +92,16 @@ class PlanViewModel(
         }
     }
 
-    fun selectDate(date: LocalDate) { selectedDate.value = date }
+    fun selectDate(date: LocalDate) {
+        if (date == selectedDate.value) return
+        selectedDate.value = date
+        _uiState.value = _uiState.value.copy(
+            isLoading = true,
+            selectedDate = date,
+            weeklyDays = emptyList(),
+            dailyPlans = emptyList()
+        )
+    }
 
     /** Refreshes the selected day only when it was following the previous current day. */
     fun refreshDate() {
@@ -100,7 +109,7 @@ class PlanViewModel(
         val previous = observedCurrentDate
         if (latest != previous) {
             observedCurrentDate = latest
-            if (selectedDate.value == previous) selectedDate.value = latest
+            if (selectedDate.value == previous) selectDate(latest)
         }
     }
 

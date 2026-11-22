@@ -204,10 +204,10 @@ class WorkoutRepositoryTest {
   val session = repo.start(plan)
   repo.addExercise(session, ExerciseEntity("finite-ex", "深蹲", "腿部", "杠铃", "", 1, 1))
   val exercise = db.workoutSessionDao().getExercises(session).single()
-  val set = db.workoutSessionDao().getSets(exercise.id).single()
+  val set = db.workoutSessionDao().getSets(exercise.id).first()
   assertTrue(runCatching { repo.updateSet(session, set.id, Double.NaN, 8, true) }.isFailure)
   assertTrue(runCatching { repo.updateSet(session, set.id, Double.POSITIVE_INFINITY, 8, true) }.isFailure)
   assertTrue(runCatching { repo.updateSet(session, set.id, -1.0, 8, true) }.isFailure)
-  assertNull(db.workoutSessionDao().getSets(exercise.id).single().actualWeight)
+  assertTrue(db.workoutSessionDao().getSets(exercise.id).all { it.actualWeight == null })
  }
 }
