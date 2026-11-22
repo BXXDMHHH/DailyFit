@@ -35,6 +35,8 @@ jobs:
           name: test-reports-and-room-schemas
           path: |
             app/build/test-results/testDebugUnitTest/
+            app/build/reports/lint-results-debug.html
+            app/build/reports/lint-results-debug.sarif
             app/schemas/
           if-no-files-found: warn
       - name: Upload debug APK

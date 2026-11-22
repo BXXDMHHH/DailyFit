@@ -119,7 +119,6 @@ private fun DailyFitApp() {
             composable("workout") {
                 val planState by planViewModel.uiState.collectAsStateWithLifecycle()
                 val workoutViewModel: WorkoutViewModel = viewModel(
-                    viewModelStoreOwner = activity,
                     factory = WorkoutViewModelFactory(app.workoutRepository, app.trainingPlanRepository, app.database)
                 )
                 WorkoutScreen(
