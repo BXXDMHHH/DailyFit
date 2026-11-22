@@ -200,4 +200,36 @@ class WorkoutRepositoryTest {
   assertTrue(runCatching { repo.updateSet(session, set.id, -1.0, 8, true) }.isFailure)
   assertTrue(db.workoutSessionDao().getSets(exercise.id).all { it.actualWeight == null })
  }
+
+ @Test fun exerciseProgressionRemembersLastWeightCustomIncrementAndOneRepMax() = runBlocking {
+  val exercise = ExerciseEntity("progress-ex", "杠铃卧推", "胸部", "杠铃", "", 1, 1)
+  val firstPlan = DailyWorkoutPlanEntity("progress-plan-1", "2026-11-22", "胸部训练", "", "PLANNED", true, null, 1, 1)
+  val firstSession = repo.start(firstPlan)
+  repo.addExercise(firstSession, exercise, targetSets = 2, targetReps = "8", targetWeight = 60.0)
+  val firstExercise = db.workoutSessionDao().getExercises(firstSession).single()
+
+  repo.saveExerciseIncrement(firstExercise, 1.0)
+  repo.saveOneRepMax(firstExercise, actualOneRepMax = 80.0, estimatedOneRepMax = 78.0)
+  repo.updateExerciseWorkingWeight(firstSession, firstExercise.id, 62.5)
+  val firstSets = db.workoutSessionDao().getSets(firstExercise.id)
+  assertTrue(firstSets.all { it.actualWeight == 62.5 })
+  repo.updateSet(firstSession, firstSets.first().id, 62.5, 8, true)
+  repo.updateExerciseWorkingWeight(firstSession, firstExercise.id, 65.0)
+  val adjustedSets = db.workoutSessionDao().getSets(firstExercise.id)
+  assertEquals(62.5, adjustedSets.first().actualWeight!!, 0.0)
+  assertEquals(65.0, adjustedSets.last().actualWeight!!, 0.0)
+  val historyId = repo.finish(firstSession)
+  val savedHistorySet = repo.observeHistoryExercises(historyId).first().single()
+  assertEquals(62.5, repo.observeHistorySets(savedHistorySet.id).first().first().actualWeight!!, 0.0)
+
+  val secondPlan = DailyWorkoutPlanEntity("progress-plan-2", "2026-11-23", "胸部训练", "", "PLANNED", true, null, 1, 1)
+  val secondSession = repo.start(secondPlan)
+  repo.addExercise(secondSession, exercise, targetSets = 2, targetReps = "8", targetWeight = 60.0)
+  val secondExercise = db.workoutSessionDao().getExercises(secondSession).single()
+  val progress = repo.getExerciseProgress(secondExercise)
+  assertEquals(62.5, progress.lastWeight!!, 0.0)
+  assertEquals(1.0, progress.incrementKg, 0.0)
+  assertEquals(80.0, progress.bestActualOneRepMax!!, 0.0)
+  assertEquals(78.0, progress.bestEstimatedOneRepMax!!, 0.0)
+ }
 }

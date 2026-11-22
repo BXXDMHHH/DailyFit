@@ -6,7 +6,45 @@ import java.time.Clock
 import java.util.UUID
 import com.dailyfit.app.domain.model.WorkoutInputRules
 
+data class ExerciseProgress(
+ val lastWeight: Double?,
+ val incrementKg: Double,
+ val bestActualOneRepMax: Double?,
+ val bestEstimatedOneRepMax: Double?
+)
+
 class WorkoutRepository(private val db:DailyFitDatabase, private val clock:Clock=Clock.systemDefaultZone()) {
+ private fun progressKey(exercise: WorkoutSessionExerciseEntity): String =
+  "workout_progress:" + (exercise.exerciseId ?: "name:" + exercise.exerciseNameSnapshot.trim().lowercase().replace(" ", "_"))
+ suspend fun getExerciseProgress(exercise: WorkoutSessionExerciseEntity): ExerciseProgress {
+  val key = progressKey(exercise)
+  val metadata = db.appMetadataDao()
+  return ExerciseProgress(
+   lastWeight = dao.lastCompletedWeight(exercise.exerciseId, exercise.exerciseNameSnapshot),
+   incrementKg = metadata.getValue("${key}:increment")?.toDoubleOrNull()?.takeIf { it.isFinite() && it > 0 } ?: 2.5,
+   bestActualOneRepMax = metadata.getValue("${key}:actual_1rm")?.toDoubleOrNull(),
+   bestEstimatedOneRepMax = metadata.getValue("${key}:estimated_1rm")?.toDoubleOrNull()
+  )
+ }
+ suspend fun saveExerciseIncrement(exercise: WorkoutSessionExerciseEntity, incrementKg: Double) {
+  require(incrementKg.isFinite() && incrementKg > 0) { "重量增量必须大于 0" }
+  db.appMetadataDao().put(AppMetadataEntity("${progressKey(exercise)}:increment", incrementKg.toString()))
+ }
+ suspend fun saveOneRepMax(exercise: WorkoutSessionExerciseEntity, actualOneRepMax: Double?, estimatedOneRepMax: Double?) {
+  require(actualOneRepMax == null || (actualOneRepMax.isFinite() && actualOneRepMax > 0)) { "实际 1RM 必须大于 0" }
+  require(estimatedOneRepMax == null || (estimatedOneRepMax.isFinite() && estimatedOneRepMax > 0)) { "估算 1RM 必须大于 0" }
+  val metadata = db.appMetadataDao()
+  val key = progressKey(exercise)
+  if (actualOneRepMax != null) {
+   val old = metadata.getValue("${key}:actual_1rm")?.toDoubleOrNull() ?: 0.0
+   if (actualOneRepMax > old) metadata.put(AppMetadataEntity("${key}:actual_1rm", actualOneRepMax.toString()))
+  }
+  if (estimatedOneRepMax != null) {
+   val old = metadata.getValue("${key}:estimated_1rm")?.toDoubleOrNull() ?: 0.0
+   if (estimatedOneRepMax > old) metadata.put(AppMetadataEntity("${key}:estimated_1rm", estimatedOneRepMax.toString()))
+  }
+ }
+
  private val dao=db.workoutSessionDao()
  private fun id()=UUID.randomUUID().toString()
  fun observeActive()=dao.observeActive()
@@ -71,6 +109,14 @@ class WorkoutRepository(private val db:DailyFitDatabase, private val clock:Clock
   check(dao.getExerciseForSession(exerciseId,sessionId) != null) { "动作不属于当前训练" }
   val sets=dao.getSets(exerciseId); require(sets.size>1) { "每个动作至少保留一组" }
   check(dao.deleteSet(setId,exerciseId,sessionId)==1) { "训练组不存在或已发生变化" }
+ }
+ suspend fun updateExerciseWorkingWeight(sessionId:String, exerciseId:String, weight:Double) = db.withTransaction {
+  require(weight.isFinite() && weight >= 0) { "实际重量必须是非负有限数值" }
+  val session = dao.get(sessionId) ?: error("训练不存在")
+  check(session.status == "IN_PROGRESS") { "训练已结束，不能修改" }
+  check(dao.getExerciseForSession(exerciseId, sessionId) != null) { "动作不属于当前训练" }
+  check(dao.updateExerciseWorkingWeight(exerciseId, sessionId, weight, clock.millis()) > 0) { "训练组不存在或训练已结束" }
+  dao.touch(sessionId, clock.millis())
  }
  suspend fun updateSet(sessionId:String,setId:String,weight:Double?,reps:Int?,done:Boolean) = db.withTransaction {
   require(weight==null || (weight.isFinite() && weight>=0)) { "实际重量必须是非负有限数值" }

@@ -42,6 +42,10 @@ fun WorkoutScreen(
     var temporaryName by remember { mutableStateOf("") }
     var showTemporaryDialog by remember { mutableStateOf(false) }
     var showDiscardConfirmation by remember { mutableStateOf(false) }
+    var incrementExerciseId by remember { mutableStateOf<String?>(null) }
+    var incrementInput by remember { mutableStateOf("2.5") }
+    var oneRepMaxExerciseId by remember { mutableStateOf<String?>(null) }
+    var actualOneRepMaxInput by remember { mutableStateOf("") }
 
     LaunchedEffect(Unit) { viewModel.loadLibrary() }
 
@@ -63,17 +67,14 @@ fun WorkoutScreen(
             }
             items(plans, key = { it.id }) { plan ->
                 Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-            ) {
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                ) {
                     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(plan.title, style = MaterialTheme.typography.titleMedium)
                         Text(plan.notes, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Button(
-                            onClick = { viewModel.start(plan) },
-                            enabled = plan.status == "PLANNED"
-                        ) {
+                        Button(onClick = { viewModel.start(plan) }, enabled = plan.status == "PLANNED") {
                             Text(when (plan.status) {
                                 "COMPLETED" -> "已完成"
                                 "SKIPPED" -> "已跳过"
@@ -95,62 +96,89 @@ fun WorkoutScreen(
                 item { Text("计划没有配置动作，可以从动作库添加，或添加临时动作。") }
             }
             items(state.exercises, key = { it.row.id }) { exercise ->
+                val initialWeight = exercise.sets.lastOrNull { !it.isCompleted && it.actualWeight != null }?.actualWeight
+                    ?: exercise.sets.firstOrNull { it.actualWeight != null }?.actualWeight
+                    ?: exercise.progress.lastWeight
+                    ?: exercise.row.targetWeight
+                var workingWeight by remember(exercise.row.id, exercise.progress.lastWeight) {
+                    mutableStateOf(initialWeight.coerceAtLeast(0.0))
+                }
                 Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-            ) {
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                ) {
                     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(exercise.row.exerciseNameSnapshot, style = MaterialTheme.typography.titleMedium)
                         Text(
                             "目标：${exercise.row.targetSets} 组 · ${exercise.row.targetReps} 次 · ${exercise.row.targetWeight} kg",
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                        if (exercise.progress.lastWeight != null) {
+                            Text("上次完成重量：${exercise.progress.lastWeight} kg", color = MaterialTheme.colorScheme.primary)
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text("本次重量", modifier = Modifier.weight(1f))
+                            OutlinedButton(onClick = {
+                                workingWeight = (workingWeight - exercise.progress.incrementKg).coerceAtLeast(0.0)
+                                viewModel.setWorkingWeight(exercise.row.id, workingWeight)
+                            }) { Text("−") }
+                            Text("${"%.1f".format(workingWeight)} kg", style = MaterialTheme.typography.titleMedium)
+                            OutlinedButton(onClick = {
+                                workingWeight += exercise.progress.incrementKg
+                                viewModel.setWorkingWeight(exercise.row.id, workingWeight)
+                            }) { Text("+") }
+                        }
+                        TextButton(onClick = {
+                            incrementExerciseId = exercise.row.id
+                            incrementInput = exercise.progress.incrementKg.toString()
+                        }) { Text("调整重量步进（当前 ${exercise.progress.incrementKg} kg）") }
+
                         exercise.sets.forEach { set ->
-                            var weight by remember(set.id, set.actualWeight) {
-                                mutableStateOf(set.actualWeight?.toString().orEmpty())
-                            }
                             var reps by remember(set.id, set.actualReps) {
-                                mutableStateOf(set.actualReps?.toString().orEmpty())
+                                mutableStateOf((set.actualReps ?: set.targetReps).toString())
                             }
-                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text("第${set.setNumber}组", modifier = Modifier.weight(1f))
-                                    Checkbox(
-                                        checked = set.isCompleted,
-                                        onCheckedChange = { viewModel.updateSet(set, weight, reps, it) }
-                                    )
-                                    Text("完成")
-                                    TextButton(onClick = { viewModel.removeSet(exercise.row.id, set.id) }) { Text("删组") }
-                                }
-                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    OutlinedTextField(
-                                        value = weight,
-                                        onValueChange = {
-                                            weight = it
-                                            if (it.isBlank() || it.toDoubleOrNull() != null) viewModel.updateSet(set, it, reps, set.isCompleted)
-                                        },
-                                        modifier = Modifier.weight(1f),
-                                        label = { Text("实际 kg") },
-                                        singleLine = true
-                                    )
-                                    OutlinedTextField(
-                                        value = reps,
-                                        onValueChange = {
-                                            reps = it
-                                            if (it.isBlank() || it.toIntOrNull() != null) viewModel.updateSet(set, weight, it, set.isCompleted)
-                                        },
-                                        modifier = Modifier.weight(1f),
-                                        label = { Text("实际次数") },
-                                        singleLine = true
-                                    )
-                                }
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("第${set.setNumber}组", modifier = Modifier.weight(1f))
+                                OutlinedTextField(
+                                    value = reps,
+                                    onValueChange = {
+                                        reps = it
+                                        if (it.isBlank() || it.toIntOrNull() != null) {
+                                            viewModel.updateSet(set, workingWeight.toString(), it, set.isCompleted)
+                                        }
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                    label = { Text("次数") },
+                                    singleLine = true
+                                )
+                                Checkbox(
+                                    checked = set.isCompleted,
+                                    onCheckedChange = {
+                                        viewModel.updateSet(
+                                            set,
+                                            workingWeight.toString(),
+                                            reps.ifBlank { set.targetReps.toString() },
+                                            it
+                                        )
+                                    }
+                                )
+                                Text(if (set.isCompleted) "完成" else "完成本组")
                             }
                         }
-                        Row {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             TextButton(onClick = { viewModel.addSet(exercise.row.id) }) { Text("＋ 添加一组") }
                             TextButton(onClick = { viewModel.removeExercise(exercise.row.id) }) { Text("删除动作") }
                         }
+                        Text("最佳记录：实际 1RM ${exercise.progress.bestActualOneRepMax?.let { "$it kg" } ?: "—"} · 估算 1RM ${exercise.progress.bestEstimatedOneRepMax?.let { "$it kg" } ?: "—"}",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        OutlinedButton(
+                            onClick = {
+                                oneRepMaxExerciseId = exercise.row.id
+                                actualOneRepMaxInput = ""
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text("记录本次最大重量 / 1RM") }
                     }
                 }
             }
@@ -171,6 +199,59 @@ fun WorkoutScreen(
                 }
             }
         }
+    }
+
+    if (incrementExerciseId != null) {
+        AlertDialog(
+            onDismissRequest = { incrementExerciseId = null },
+            title = { Text("设置重量步进") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("每次点击 + / − 调整的重量，例如杠铃卧推 2.5 kg、侧平举 1 kg。")
+                    OutlinedTextField(
+                        value = incrementInput,
+                        onValueChange = { incrementInput = it },
+                        label = { Text("每次增加 / 减少（kg）") },
+                        singleLine = true
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val value = incrementInput.toDoubleOrNull()
+                    if (value != null && value.isFinite() && value > 0) {
+                        incrementExerciseId?.let { id -> viewModel.setWeightIncrement(id, value) }
+                        incrementExerciseId = null
+                    }
+                }) { Text("保存") }
+            },
+            dismissButton = { TextButton(onClick = { incrementExerciseId = null }) { Text("取消") } }
+        )
+    }
+
+    if (oneRepMaxExerciseId != null) {
+        AlertDialog(
+            onDismissRequest = { oneRepMaxExerciseId = null },
+            title = { Text("记录最大重量 / 1RM") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("填写实际完成过的单次最大重量；留空则只记录根据本次已完成组估算的 1RM。两种数据分开保存。")
+                    OutlinedTextField(
+                        value = actualOneRepMaxInput,
+                        onValueChange = { actualOneRepMaxInput = it },
+                        label = { Text("实际 1RM（kg，可留空）") },
+                        singleLine = true
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    oneRepMaxExerciseId?.let { viewModel.recordOneRepMax(it, actualOneRepMaxInput) }
+                    oneRepMaxExerciseId = null
+                }) { Text("记录") }
+            },
+            dismissButton = { TextButton(onClick = { oneRepMaxExerciseId = null }) { Text("取消") } }
+        )
     }
 
     if (showDiscardConfirmation) {
