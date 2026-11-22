@@ -22,7 +22,7 @@ class WorkoutRepository(private val db:DailyFitDatabase, private val clock:Clock
   val now=clock.millis()
   dao.insertSession(WorkoutSessionEntity(sessionId,plan.id,plan.businessDate,plan.title,"IN_PROGRESS",now,now))
   actions.sortedBy { it.sortOrder }.forEachIndexed { index, action ->
-   require(action.targetSets in 1..30 && action.targetWeight >= 0.0 && action.targetReps.isNotBlank())
+   require(action.targetSets in 1..30 && action.targetWeight.isFinite() && action.targetWeight >= 0.0 && action.targetReps.isNotBlank())
    val exerciseId=id()
    dao.insertExercise(WorkoutSessionExerciseEntity(
     exerciseId,sessionId,action.exerciseId,action.exerciseNameSnapshot,action.categorySnapshot,

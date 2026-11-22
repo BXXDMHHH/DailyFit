@@ -22,8 +22,26 @@ jobs:
           gradle-version: '9.6.0'
       - name: Generate Room schema
         run: gradle kspDebugKotlin --rerun-tasks
-      - name: Run unit tests
+      - name: Compile debug Kotlin
+        run: gradle compileDebugKotlin
+      - name: Run unit and Room integration tests
         run: gradle testDebugUnitTest
+      - name: Summarize test results
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import glob, xml.etree.ElementTree as ET
+          totals = {"tests": 0, "failures": 0, "errors": 0, "skipped": 0}
+          for path in glob.glob("app/build/test-results/testDebugUnitTest/*.xml"):
+              root = ET.parse(path).getroot()
+              for key in totals:
+                  totals[key] += int(root.attrib.get(key, 0))
+          print("JUnit summary: " + ", ".join(f"{k}={v}" for k, v in totals.items()))
+          if totals["tests"] == 0:
+              raise SystemExit("No JUnit tests were discovered")
+          PY
+      - name: Run Android lint
+        run: gradle lintDebug
       - name: Assemble debug APK
         run: gradle assembleDebug
       - name: Upload unit test reports and Room schemas
@@ -34,6 +52,7 @@ jobs:
           path: |
             app/build/test-results/testDebugUnitTest/
             app/schemas/
+            app/build/reports/lint-results-debug.html
           if-no-files-found: warn
       - name: Upload debug APK
         if: success()
