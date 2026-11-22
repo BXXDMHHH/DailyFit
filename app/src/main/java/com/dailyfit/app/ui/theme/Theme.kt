@@ -1,6 +1,7 @@
 package com.dailyfit.app.ui.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.Typography
@@ -10,68 +11,69 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.shape.RoundedCornerShape
 
-private val Ink = Color(0xFF332B25)
-private val Muted = Color(0xFF88796D)
-private val Canvas = Color(0xFFFFF8EF)
-private val Paper = Color(0xFFFFFDF9)
-private val SunOrange = Color(0xFFE88A3A)
-private val SunOrangeSoft = Color(0xFFFFE8D0)
-private val Honey = Color(0xFFF4C76B)
-private val Sage = Color(0xFF789477)
-private val Line = Color(0xFFF0E5D8)
+private val Ink = Color(0xFF3D2930)
+private val Muted = Color(0xFF927781)
+private val Canvas = Color(0xFFFFF5F7)
+private val Paper = Color(0xFFFFFCFD)
+private val Rose = Color(0xFFD87595)
+private val RoseSoft = Color(0xFFFBE1E9)
+private val Berry = Color(0xFFB95F7D)
+private val BerrySoft = Color(0xFFF8EAF0)
+private val WarmGold = Color(0xFFC28A55)
+private val WarmGoldSoft = Color(0xFFFFF0DF)
+private val Line = Color(0xFFF0DFE5)
 
 private val LightColors = lightColorScheme(
-    primary = SunOrange,
+    primary = Rose,
     onPrimary = Color.White,
-    primaryContainer = SunOrangeSoft,
-    onPrimaryContainer = Color(0xFF633512),
-    secondary = Color(0xFFB87936),
+    primaryContainer = RoseSoft,
+    onPrimaryContainer = Color(0xFF5B263A),
+    secondary = Berry,
     onSecondary = Color.White,
-    secondaryContainer = Color(0xFFFFF0D5),
-    onSecondaryContainer = Color(0xFF563B18),
-    tertiary = Sage,
+    secondaryContainer = BerrySoft,
+    onSecondaryContainer = Color(0xFF54283A),
+    tertiary = WarmGold,
     onTertiary = Color.White,
-    tertiaryContainer = Color(0xFFE6F0E2),
-    onTertiaryContainer = Color(0xFF243D27),
+    tertiaryContainer = WarmGoldSoft,
+    onTertiaryContainer = Color(0xFF573719),
     background = Canvas,
     onBackground = Ink,
     surface = Paper,
     onSurface = Ink,
-    surfaceVariant = Color(0xFFFFF1E2),
+    surfaceVariant = Color(0xFFFFEDF1),
     onSurfaceVariant = Muted,
-    outline = Color(0xFFD8C8B8),
+    outline = Color(0xFFD9BBC5),
     outlineVariant = Line,
-    error = Color(0xFFB94B3E),
-    errorContainer = Color(0xFFFFE8E3),
-    onErrorContainer = Color(0xFF641E17)
+    error = Color(0xFFB94B55),
+    errorContainer = Color(0xFFFFE7E8),
+    onErrorContainer = Color(0xFF641E27)
 )
 
 private val DarkColors = darkColorScheme(
-    primary = Color(0xFFFFB66F),
-    onPrimary = Color(0xFF482300),
-    primaryContainer = Color(0xFF704018),
-    onPrimaryContainer = Color(0xFFFFDCC0),
-    secondary = Color(0xFFEBC27D),
-    onSecondary = Color(0xFF422D0D),
-    secondaryContainer = Color(0xFF5B431F),
-    onSecondaryContainer = Color(0xFFFFE8BD),
-    tertiary = Color(0xFFB4CBAE),
-    onTertiary = Color(0xFF203820),
-    tertiaryContainer = Color(0xFF354F34),
-    onTertiaryContainer = Color(0xFFD0E8C9),
-    background = Color(0xFF211C17),
-    onBackground = Color(0xFFF4E9DE),
-    surface = Color(0xFF2B241E),
-    onSurface = Color(0xFFF4E9DE),
-    surfaceVariant = Color(0xFF3A3028),
-    onSurfaceVariant = Color(0xFFD1BFAE),
-    outline = Color(0xFF9B8571),
-    outlineVariant = Color(0xFF514338),
-    error = Color(0xFFFFB4A8),
-    errorContainer = Color(0xFF672B24),
-    onErrorContainer = Color(0xFFFFDAD3)
+    primary = Color(0xFFFFAFC5),
+    onPrimary = Color(0xFF581D34),
+    primaryContainer = Color(0xFF79384F),
+    onPrimaryContainer = Color(0xFFFFD9E3),
+    secondary = Color(0xFFEBAAC0),
+    onSecondary = Color(0xFF4D2436),
+    secondaryContainer = Color(0xFF653849),
+    onSecondaryContainer = Color(0xFFFFD9E5),
+    tertiary = Color(0xFFE6B987),
+    onTertiary = Color(0xFF432A12),
+    tertiaryContainer = Color(0xFF5C4126),
+    onTertiaryContainer = Color(0xFFFFDEB8),
+    background = Color(0xFF241B20),
+    onBackground = Color(0xFFF7EAF0),
+    surface = Color(0xFF30242B),
+    onSurface = Color(0xFFF7EAF0),
+    surfaceVariant = Color(0xFF43323B),
+    onSurfaceVariant = Color(0xFFD8BEC9),
+    outline = Color(0xFF9E7C8A),
+    outlineVariant = Color(0xFF58434D),
+    error = Color(0xFFFFB4AB),
+    errorContainer = Color(0xFF672B30),
+    onErrorContainer = Color(0xFFFFDAD6)
 )
 
 private val DailyFitShapes = Shapes(
