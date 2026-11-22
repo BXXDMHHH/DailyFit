@@ -11,6 +11,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -61,7 +62,11 @@ fun WorkoutScreen(
                 item { Text("今天暂无训练安排，请先到计划页设置训练。", color = MaterialTheme.colorScheme.onSurfaceVariant) }
             }
             items(plans, key = { it.id }) { plan ->
-                Card(Modifier.fillMaxWidth()) {
+                Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            ) {
                     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(plan.title, style = MaterialTheme.typography.titleMedium)
                         Text(plan.notes, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -90,7 +95,11 @@ fun WorkoutScreen(
                 item { Text("计划没有配置动作，可以从动作库添加，或添加临时动作。") }
             }
             items(state.exercises, key = { it.row.id }) { exercise ->
-                Card(Modifier.fillMaxWidth()) {
+                Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            ) {
                     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(exercise.row.exerciseNameSnapshot, style = MaterialTheme.typography.titleMedium)
                         Text(
