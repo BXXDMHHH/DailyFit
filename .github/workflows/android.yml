@@ -44,6 +44,15 @@ jobs:
         run: gradle lintDebug
       - name: Assemble debug APK
         run: gradle assembleDebug
+      - name: Run Android navigation smoke test
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: Pixel_2
+          disable-animations: true
+          script: gradle connectedDebugAndroidTest
       - name: Assemble unsigned release APK
         run: gradle assembleRelease
       - name: Upload unit test reports and Room schemas
@@ -55,6 +64,7 @@ jobs:
             app/build/test-results/testDebugUnitTest/
             app/schemas/
             app/build/reports/lint-results-debug.html
+            app/build/outputs/androidTest-results/connected/
           if-no-files-found: warn
       - name: Upload debug APK
         if: success()
