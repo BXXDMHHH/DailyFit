@@ -3,6 +3,7 @@ package com.dailyfit.app
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.icons.Icons
@@ -18,7 +19,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -54,7 +54,8 @@ private enum class MainDestination(val route: String, val label: String) {
 @Composable
 private fun DailyFitApp() {
     val navController = rememberNavController()
-    val activity = LocalContext.current as ComponentActivity
+    val activity = LocalActivity.current as? ComponentActivity
+        ?: error("DailyFit requires a ComponentActivity host")
     val app = activity.application as DailyFitApplication
     val habitViewModel: HabitViewModel = viewModel(
         viewModelStoreOwner = activity,
