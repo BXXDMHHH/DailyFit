@@ -26,5 +26,9 @@ class NavigationSmokeTest {
 
         composeRule.onNodeWithText("首页").performClick()
         composeRule.onNodeWithText("今日习惯").assertIsDisplayed()
+
+        composeRule.onNodeWithText("开始训练").performClick()
+        composeRule.onNodeWithText("训练执行").assertIsDisplayed()
+        composeRule.onNodeWithText("返回").performClick()
     }
 }
