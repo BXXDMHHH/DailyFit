@@ -115,7 +115,7 @@ fun PlanScreen(viewModel: PlanViewModel, habitViewModel: HabitViewModel, modifie
                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     Button(
                                         onClick = { pendingTemplateImport = template },
-                                        enabled = !state.isLoading && state.dailyPlans.any { it.isPrimary && it.status == "PLANNED" }
+                                        enabled = !state.isLoading && templateActions.isNotEmpty() && state.dailyPlans.any { it.isPrimary && it.status == "PLANNED" }
                                     ) { Text("导入${state.selectedDate}") }
                                     TextButton(onClick = { deletingTemplate = template }) { Text("删除") }
                                 }
