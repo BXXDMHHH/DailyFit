@@ -52,6 +52,7 @@ fun HistoryScreen(
     var historyLoaded by remember { mutableStateOf(false) }
     var statsLoaded by remember { mutableStateOf(false) }
     var historyError by remember { mutableStateOf<String?>(null) }
+    var statsError by remember { mutableStateOf<String?>(null) }
     var reloadKey by remember { mutableStateOf(0) }
     var selected by remember { mutableStateOf<WorkoutHistoryEntity?>(null) }
     var details by remember {
@@ -65,6 +66,7 @@ fun HistoryScreen(
         historyLoaded = false
         statsLoaded = false
         historyError = null
+        statsError = null
         launch {
             try {
                 dao.observeHistory().collect {
@@ -80,7 +82,8 @@ fun HistoryScreen(
             try {
                 dao.observeStats().collect { stats = it; statsLoaded = true }
             } catch (error: Exception) {
-                historyError = error.message ?: "训练统计加载失败"
+                statsError = error.message ?: "训练统计加载失败"
+                statsLoaded = true
             }
         }
     }
@@ -130,6 +133,9 @@ fun HistoryScreen(
                     Text("训练统计", style = MaterialTheme.typography.titleMedium)
                     if (!historyLoaded || !statsLoaded) {
                         CircularProgressIndicator()
+                    } else if (statsError != null) {
+                        Text(statsError!!, color = MaterialTheme.colorScheme.error)
+                        Button(onClick = { reloadKey++ }) { Text("重新加载统计") }
                     } else {
                         val incompleteSessions = rows.count { it.status == "INCOMPLETE" }
                         val skippedSessions = rows.count { it.status == "SKIPPED" }
@@ -168,6 +174,7 @@ fun HistoryScreen(
             Card(Modifier.fillMaxWidth().clickable {
                 scope.launch {
                     selected = row
+                    details = emptyList()
                     detailsLoading = true
                     detailsError = null
                     runCatching {

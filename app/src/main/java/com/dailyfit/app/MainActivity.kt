@@ -38,7 +38,6 @@ import com.dailyfit.app.feature.plan.PlanViewModelFactory
 import com.dailyfit.app.feature.workout.WorkoutScreen
 import com.dailyfit.app.feature.workout.WorkoutViewModel
 import com.dailyfit.app.feature.workout.WorkoutViewModelFactory
-import java.time.LocalDate
 import com.dailyfit.app.ui.theme.DailyFitTheme
 
 class MainActivity : ComponentActivity() {
@@ -108,10 +107,10 @@ private fun DailyFitApp() {
                 HomeScreen(
                     state = state,
                     viewModel = habitViewModel,
-                    todayWorkoutPlans = planState.dailyPlans.takeIf { planState.selectedDate == LocalDate.now() }.orEmpty(),
+                    todayWorkoutPlans = planState.dailyPlans.takeIf { planState.selectedDate == businessDate }.orEmpty(),
                     isWorkoutPlansLoading = planState.isLoading,
                     onStartWorkout = {
-                        planViewModel.selectDate(LocalDate.now())
+                        planViewModel.selectDate(businessDate)
                         navController.navigate("workout")
                     }
                 )
@@ -125,7 +124,7 @@ private fun DailyFitApp() {
                 )
                 WorkoutScreen(
                     viewModel = workoutViewModel,
-                    plans = planState.dailyPlans.takeIf { planState.selectedDate == LocalDate.now() }.orEmpty(),
+                    plans = planState.dailyPlans.takeIf { planState.selectedDate == businessDate }.orEmpty(),
                     onBack = { navController.popBackStack() }
                 )
             }
