@@ -54,6 +54,7 @@ fun PlanScreen(viewModel: PlanViewModel, habitViewModel: HabitViewModel, modifie
     var editingExtra by remember { mutableStateOf<DailyWorkoutPlanEntity?>(null) }
     var editingTemplate by remember { mutableStateOf<WorkoutTemplateEntity?>(null) }
     var deletingTemplate by remember { mutableStateOf<WorkoutTemplateEntity?>(null) }
+    var pendingTemplateImport by remember { mutableStateOf<WorkoutTemplateEntity?>(null) }
     var showTemplateEditor by remember { mutableStateOf(false) }
     var dateText by remember { mutableStateOf(state.selectedDate.toString()) }
 
@@ -103,9 +104,17 @@ fun PlanScreen(viewModel: PlanViewModel, habitViewModel: HabitViewModel, modifie
                                 if (template.description.isNotBlank()) {
                                     Text(template.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
+                                val templateActions = state.workoutTemplateExercises.filter { it.ownerId == template.id }.sortedBy { it.sortOrder }
+                                templateActions.forEach { action ->
+                                    Text(
+                                        "${action.sortOrder + 1}. ${action.exerciseNameSnapshot}  ·  ${action.targetSets} 组 × ${action.targetReps} 次",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     Button(
-                                        onClick = { viewModel.importWorkoutTemplateForSelectedDate(template.id) },
+                                        onClick = { pendingTemplateImport = template },
                                         enabled = !state.isLoading && state.dailyPlans.any { it.isPrimary && it.status == "PLANNED" }
                                     ) { Text("导入${state.selectedDate}") }
                                     TextButton(onClick = { deletingTemplate = template }) { Text("删除") }
@@ -239,6 +248,22 @@ fun PlanScreen(viewModel: PlanViewModel, habitViewModel: HabitViewModel, modifie
                 TextButton(onClick = { viewModel.deleteWorkoutTemplate(template.id); deletingTemplate = null }) { Text("删除") }
             },
             dismissButton = { TextButton(onClick = { deletingTemplate = null }) { Text("取消") } }
+        )
+    }
+    pendingTemplateImport?.let { template ->
+        AlertDialog(
+            onDismissRequest = { pendingTemplateImport = null },
+            title = { Text("导入完整训练计划？") },
+            text = {
+                Text("将「${template.name}」的全部动作、目标组数和次数复制到 ${state.selectedDate} 的主要训练，并替换当天当前计划。模板本身和已保存的训练历史不会改变。")
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.importWorkoutTemplateForSelectedDate(template.id)
+                    pendingTemplateImport = null
+                }) { Text("确认导入") }
+            },
+            dismissButton = { TextButton(onClick = { pendingTemplateImport = null }) { Text("取消") } }
         )
     }
     if (showWeeklyEditor) {
