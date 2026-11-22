@@ -11,6 +11,7 @@ import com.dailyfit.app.data.local.WorkoutPlanExerciseEntity
 import java.time.Clock
 import java.time.LocalDate
 import java.util.UUID
+import com.dailyfit.app.domain.model.WorkoutInputRules
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
@@ -191,8 +192,10 @@ class TrainingPlanRepository(
 
     suspend fun deleteExtra(date: LocalDate, id: String): Boolean =
         database.withTransaction {
+            val plan = dailyDao.getById(id) ?: return@withTransaction false
+            if (plan.businessDate != date.toString() || plan.isPrimary) return@withTransaction false
             planExerciseDao.deleteForOwner("DAILY_PLAN", id)
-            dailyDao.deleteExtra(id, date.toString()) > 0
+            dailyDao.deleteExtra(id, date.toString()) == 1
         }
 
     suspend fun setStatus(date: LocalDate, id: String, status: WorkoutPlanStatus): Boolean =
@@ -220,7 +223,11 @@ class TrainingPlanRepository(
 
     suspend fun savePlanExercises(ownerType: String, ownerId: String, actions: List<PlanActionInput>) {
         require(ownerType == "WEEKLY_DAY" || ownerType == "DAILY_PLAN")
-        require(actions.all { it.name.isNotBlank() && it.targetSets in 1..30 && it.targetReps.isNotBlank() && it.targetWeight >= 0.0 }) {
+        require(actions.all {
+            it.name.isNotBlank() && it.targetSets in 1..30 &&
+                runCatching { WorkoutInputRules.parseTargetReps(it.targetReps) }.isSuccess &&
+                WorkoutInputRules.isValidWeight(it.targetWeight)
+        }) {
             "动作名称、目标组数、次数或重量不合法"
         }
         database.withTransaction {
