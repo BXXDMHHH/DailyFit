@@ -198,7 +198,7 @@ class WorkoutRepositoryTest {
  @Test fun actualWeightMustBeFiniteAndNonNegative() = runBlocking {
   val plan=DailyWorkoutPlanEntity("finite-plan","2026-11-22","力量训练","", "PLANNED",true,null,1,1)
   val session=repo.start(plan)
-  repo.addExercise(session,ExerciseEntity("finite-ex","深蹲","腿部","杠铃","",1,1))
+  repo.addExercise(session,ExerciseEntity("finite-ex","深蹲","腿部","杠铃","",1,1),targetSets=1)
   val exercise=db.workoutSessionDao().getExercises(session).single()
   val set=db.workoutSessionDao().getSets(exercise.id).single()
   assertTrue(runCatching { repo.updateSet(session,set.id,Double.NaN,8,true) }.isFailure)
