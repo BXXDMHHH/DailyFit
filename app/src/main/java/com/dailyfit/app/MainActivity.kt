@@ -125,6 +125,13 @@ private fun DailyFitApp() {
                     onStartWorkout = {
                         planViewModel.selectDate(LocalDate.now())
                         navController.navigate("workout")
+                    },
+                    onOpenTrainingPlan = {
+                        navController.navigate(MainDestination.Plan.route) {
+                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
                     }
                 )
             }
