@@ -24,6 +24,8 @@ jobs:
         run: gradle kspDebugKotlin --rerun-tasks
       - name: Run unit tests
         run: gradle testDebugUnitTest
+      - name: Run Android lint
+        run: gradle lintDebug
       - name: Assemble debug APK
         run: gradle assembleDebug
       - name: Upload unit test reports and Room schemas

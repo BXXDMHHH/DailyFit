@@ -168,6 +168,7 @@ fun HistoryScreen(
             Card(Modifier.fillMaxWidth().clickable {
                 scope.launch {
                     selected = row
+                    details = emptyList()
                     detailsLoading = true
                     detailsError = null
                     runCatching {

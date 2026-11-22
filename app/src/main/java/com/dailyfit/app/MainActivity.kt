@@ -65,7 +65,10 @@ private fun DailyFitApp() {
         viewModelStoreOwner = activity,
         factory = PlanViewModelFactory(app.trainingPlanRepository)
     )
-    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { habitViewModel.refreshDate() }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        habitViewModel.refreshDate()
+        planViewModel.refreshDate()
+    }
     val entry by navController.currentBackStackEntryAsState()
     val currentRoute = entry?.destination?.route
     LaunchedEffect(currentRoute) {
